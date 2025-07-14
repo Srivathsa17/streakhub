@@ -1,9 +1,9 @@
+
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Flame, Trophy, Target, Users, Plus, Calendar } from 'lucide-react';
+import { Flame, Trophy, Target, Users, Plus, Calendar, MessageCircle, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
@@ -16,26 +16,37 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* Header */}
-      <header className="border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">
-              Welcome, {user?.email}
-            </span>
-            <Button variant="outline" onClick={handleSignOut}>
-              Sign Out
-            </Button>
+      <header className="sticky top-0 z-10 border-b border-border/50 bg-background/95 backdrop-blur-md">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Dashboard</h1>
+              <p className="text-sm text-muted-foreground">
+                Welcome back, {user?.email?.split('@')[0]}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => navigate('/profile')}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" onClick={handleSignOut}>
+                Sign Out
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6">
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <Card className="shadow-card border-border/50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Current Streak</CardTitle>
               <Flame className="h-4 w-4 text-streak" />
@@ -48,7 +59,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="shadow-card border-border/50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total XP</CardTitle>
               <Trophy className="h-4 w-4 text-warning" />
@@ -61,7 +72,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="shadow-card border-border/50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active Goals</CardTitle>
               <Target className="h-4 w-4 text-info" />
@@ -74,7 +85,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="shadow-card border-border/50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Rank</CardTitle>
               <Users className="h-4 w-4 text-primary" />
@@ -89,12 +100,12 @@ const Dashboard = () => {
         </div>
 
         {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Today's Activity */}
-          <Card>
+          <Card className="shadow-card border-border/50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
+                <Calendar className="h-5 w-5 text-primary" />
                 Today's Activity
               </CardTitle>
               <CardDescription>
@@ -103,11 +114,13 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-center py-8">
-                <div className="text-muted-foreground mb-4">
-                  Haven't logged today's activity yet
+                <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Plus className="h-8 w-8 text-muted-foreground" />
                 </div>
+                <p className="text-muted-foreground mb-4">
+                  Haven't logged today's activity yet
+                </p>
                 <Button variant="hero" className="w-full" onClick={() => console.log('Log progress clicked')}>
-                  <Plus className="h-4 w-4 mr-2" />
                   Log Today's Progress
                 </Button>
               </div>
@@ -115,10 +128,10 @@ const Dashboard = () => {
           </Card>
 
           {/* Goals */}
-          <Card>
+          <Card className="shadow-card border-border/50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5" />
+                <Target className="h-5 w-5 text-primary" />
                 Your Goals
               </CardTitle>
               <CardDescription>
@@ -127,11 +140,13 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-center py-8">
-                <div className="text-muted-foreground mb-4">
-                  No goals set yet
+                <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Target className="h-8 w-8 text-muted-foreground" />
                 </div>
+                <p className="text-muted-foreground mb-4">
+                  No goals set yet
+                </p>
                 <Button variant="outline" className="w-full" onClick={() => console.log('Create goal clicked')}>
-                  <Plus className="h-4 w-4 mr-2" />
                   Create Your First Goal
                 </Button>
               </div>
@@ -140,40 +155,57 @@ const Dashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button 
-              variant="outline" 
-              className="h-auto p-6 flex flex-col items-center gap-2"
-              onClick={() => navigate('/leaderboard')}
-            >
-              <Trophy className="h-8 w-8 text-warning" />
-              <span className="font-medium">View Leaderboard</span>
-              <span className="text-sm text-muted-foreground">See top performers</span>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="h-auto p-6 flex flex-col items-center gap-2"
-              onClick={() => navigate('/community')}
-            >
-              <Users className="h-8 w-8 text-info" />
-              <span className="font-medium">Join Community Chat</span>
-              <span className="text-sm text-muted-foreground">Connect with others</span>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="h-auto p-6 flex flex-col items-center gap-2"
-              onClick={() => navigate('/profile')}
-            >
-              <Target className="h-8 w-8 text-primary" />
-              <span className="font-medium">Edit Profile</span>
-              <span className="text-sm text-muted-foreground">Update your info</span>
-            </Button>
-          </div>
-        </div>
+        <Card className="shadow-card border-border/50">
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>Access key features of StreakHub</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Button 
+                variant="outline" 
+                className="h-auto p-6 flex flex-col items-center gap-3 hover:bg-accent/50 transition-colors"
+                onClick={() => navigate('/leaderboard')}
+              >
+                <div className="w-12 h-12 bg-warning/10 rounded-full flex items-center justify-center">
+                  <Trophy className="h-6 w-6 text-warning" />
+                </div>
+                <div className="text-center">
+                  <div className="font-medium">Leaderboard</div>
+                  <div className="text-sm text-muted-foreground">See top performers</div>
+                </div>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="h-auto p-6 flex flex-col items-center gap-3 hover:bg-accent/50 transition-colors"
+                onClick={() => navigate('/community')}
+              >
+                <div className="w-12 h-12 bg-info/10 rounded-full flex items-center justify-center">
+                  <MessageCircle className="h-6 w-6 text-info" />
+                </div>
+                <div className="text-center">
+                  <div className="font-medium">Community Chat</div>
+                  <div className="text-sm text-muted-foreground">Connect with others</div>
+                </div>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="h-auto p-6 flex flex-col items-center gap-3 hover:bg-accent/50 transition-colors"
+                onClick={() => navigate('/profile')}
+              >
+                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                  <Settings className="h-6 w-6 text-primary" />
+                </div>
+                <div className="text-center">
+                  <div className="font-medium">Edit Profile</div>
+                  <div className="text-sm text-muted-foreground">Update your info</div>
+                </div>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

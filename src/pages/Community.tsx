@@ -1,21 +1,36 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, Send, Users, ArrowLeft } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { MessageCircle, Send, Users, ArrowLeft, Hash } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+
+interface Message {
+  id: string;
+  message: string;
+  user_id: string;
+  created_at: string;
+  profiles?: {
+    username: string;
+    display_name: string;
+    avatar_url: string;
+  };
+}
 
 const Community = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [onlineUsers, setOnlineUsers] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   // Load messages on component mount
   useEffect(() => {
@@ -29,7 +44,8 @@ const Community = () => {
         schema: 'public',
         table: 'chat_messages'
       }, (payload) => {
-        setMessages(prev => [...prev, payload.new]);
+        console.log('New message received:', payload);
+        loadMessages(); // Reload all messages to get profile info
       })
       .subscribe();
 
@@ -37,13 +53,16 @@ const Community = () => {
     const presenceChannel = supabase.channel('online-users')
       .on('presence', { event: 'sync' }, () => {
         const state = presenceChannel.presenceState();
+        console.log('Presence sync:', state);
         setOnlineUsers(Object.keys(state).length);
       })
-      .on('presence', { event: 'join' }, () => {
+      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        console.log('User joined:', key, newPresences);
         const state = presenceChannel.presenceState();
         setOnlineUsers(Object.keys(state).length);
       })
-      .on('presence', { event: 'leave' }, () => {
+      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+        console.log('User left:', key, leftPresences);
         const state = presenceChannel.presenceState();
         setOnlineUsers(Object.keys(state).length);
       })
@@ -67,10 +86,23 @@ const Community = () => {
     try {
       const { data, error } = await supabase
         .from('chat_messages')
-        .select('*')
-        .order('created_at', { ascending: true });
+        .select(`
+          *,
+          profiles:user_id (
+            username,
+            display_name,
+            avatar_url
+          )
+        `)
+        .order('created_at', { ascending: true })
+        .limit(50);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading messages:', error);
+        return;
+      }
+      
+      console.log('Loaded messages:', data);
       setMessages(data || []);
     } catch (error) {
       console.error('Error loading messages:', error);
@@ -79,8 +111,9 @@ const Community = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || !user) return;
+    if (!message.trim() || !user || loading) return;
     
+    setLoading(true);
     try {
       const { error } = await supabase
         .from('chat_messages')
@@ -89,7 +122,11 @@ const Community = () => {
           user_id: user.id
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error sending message:', error);
+        throw error;
+      }
+      
       setMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
@@ -98,104 +135,155 @@ const Community = () => {
         description: "Failed to send message. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setLoading(false);
     }
   };
 
+  const formatTime = (timestamp: string) => {
+    return new Date(timestamp).toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
+  const getUserDisplayName = (msg: Message) => {
+    if (msg.profiles?.display_name) return msg.profiles.display_name;
+    if (msg.profiles?.username) return msg.profiles.username;
+    return msg.user_id.slice(0, 8);
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* Header */}
-      <header className="border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-2xl font-bold">Community Chat</h1>
-          <Badge variant="secondary" className="ml-auto">
-            <Users className="h-3 w-3 mr-1" />
-            {onlineUsers} online
-          </Badge>
+      <header className="sticky top-0 z-10 border-b border-border/50 bg-background/95 backdrop-blur-md">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => navigate('/dashboard')}
+                className="hover:bg-accent/50"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center gap-2">
+                <Hash className="h-5 w-5 text-primary" />
+                <div>
+                  <h1 className="text-xl font-bold">Community Chat</h1>
+                  <p className="text-sm text-muted-foreground">Connect with fellow developers</p>
+                </div>
+              </div>
+            </div>
+            <Badge variant="secondary" className="px-3 py-1">
+              <Users className="h-3 w-3 mr-1" />
+              {onlineUsers} online
+            </Badge>
+          </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <Card className="h-[600px] flex flex-col">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageCircle className="h-5 w-5" />
-              General Chat
-            </CardTitle>
-            <CardDescription>
-              Connect with fellow developers and share your coding journey
-            </CardDescription>
-          </CardHeader>
-          
-          <CardContent className="flex-1 flex flex-col">
-            {/* Messages Area */}
-            <div className="flex-1 border rounded-lg p-4 mb-4 bg-muted/30 overflow-y-auto">
-              {messages.length === 0 ? (
-                <div className="text-center py-12">
-                  <MessageCircle className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">Start the Conversation</h3>
-                  <p className="text-muted-foreground">
-                    Be the first to share your coding progress and motivate others!
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {messages.map((msg) => (
-                    <div key={msg.id} className="flex flex-col space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{msg.user_id}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(msg.created_at).toLocaleTimeString()}
-                        </span>
+      <div className="container mx-auto px-4 py-6 max-w-4xl">
+        <Card className="h-[calc(100vh-200px)] flex flex-col shadow-card border-border/50">
+          {/* Messages Area */}
+          <CardContent className="flex-1 p-0">
+            <div className="h-full flex flex-col">
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {messages.length === 0 ? (
+                  <div className="text-center py-12">
+                    <MessageCircle className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold mb-2">Start the Conversation</h3>
+                    <p className="text-muted-foreground">
+                      Be the first to share your coding progress and motivate others!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {messages.map((msg) => (
+                      <div key={msg.id} className="flex gap-3 group hover:bg-accent/30 -mx-2 px-2 py-2 rounded-lg transition-colors">
+                        <Avatar className="w-8 h-8 border border-border/50">
+                          <AvatarImage src={msg.profiles?.avatar_url} />
+                          <AvatarFallback className="bg-muted text-xs">
+                            {getUserDisplayName(msg).slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-sm">
+                              {getUserDisplayName(msg)}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatTime(msg.created_at)}
+                            </span>
+                          </div>
+                          <p className="text-sm break-words">{msg.message}</p>
+                        </div>
                       </div>
-                      <p className="text-sm">{msg.message}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            {/* Message Input */}
-            {user ? (
-              <form onSubmit={handleSendMessage} className="flex gap-2">
-                <Input
-                  placeholder="Type your message..."
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  className="flex-1"
-                />
-                <Button type="submit" variant="hero" disabled={!message.trim()}>
-                  <Send className="h-4 w-4" />
-                </Button>
-              </form>
-            ) : (
-              <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <p className="text-muted-foreground mb-2">
-                  Sign in to join the conversation
-                </p>
-                <Button variant="outline" onClick={() => navigate('/auth')}>
-                  Sign In
-                </Button>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
+              
+              {/* Message Input */}
+              <div className="border-t border-border/50 p-4">
+                {user ? (
+                  <form onSubmit={handleSendMessage} className="flex gap-2">
+                    <Input
+                      placeholder="Type your message..."
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      className="flex-1"
+                      disabled={loading}
+                    />
+                    <Button 
+                      type="submit" 
+                      variant="hero" 
+                      disabled={!message.trim() || loading}
+                      className="px-4"
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </form>
+                ) : (
+                  <div className="text-center p-4 bg-muted/30 rounded-lg">
+                    <p className="text-muted-foreground mb-2">
+                      Sign in to join the conversation
+                    </p>
+                    <Button variant="outline" onClick={() => navigate('/auth')}>
+                      Sign In
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
 
         {/* Community Guidelines */}
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Community Guidelines</CardTitle>
+        <Card className="mt-6 shadow-card border-border/50">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg">Community Guidelines</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>• Be respectful and supportive of fellow developers</li>
-              <li>• Share your coding progress and celebrate others' achievements</li>
-              <li>• Ask questions and help others when you can</li>
-              <li>• Keep discussions relevant to coding and programming</li>
-              <li>• No spam, self-promotion, or inappropriate content</li>
-            </ul>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-muted-foreground">
+              <div className="flex items-start gap-2">
+                <span className="text-primary">•</span>
+                <span>Be respectful and supportive of fellow developers</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-primary">•</span>
+                <span>Share your coding progress and celebrate achievements</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-primary">•</span>
+                <span>Ask questions and help others when you can</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-primary">•</span>
+                <span>Keep discussions relevant to coding and programming</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
