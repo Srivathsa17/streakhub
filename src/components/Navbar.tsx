@@ -1,9 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { Code2, Menu } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogin = () => {
+    navigate('/auth');
+  };
+
+  const handleSignUp = () => {
+    navigate('/auth');
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
@@ -22,12 +32,18 @@ const Navbar = () => {
             <a href="#features" className="text-muted-foreground hover:text-foreground transition-smooth">
               Features
             </a>
-            <a href="#leaderboard" className="text-muted-foreground hover:text-foreground transition-smooth">
+            <button 
+              onClick={() => navigate('/leaderboard')} 
+              className="text-muted-foreground hover:text-foreground transition-smooth"
+            >
               Leaderboard
-            </a>
-            <a href="#community" className="text-muted-foreground hover:text-foreground transition-smooth">
+            </button>
+            <button 
+              onClick={() => navigate('/community')} 
+              className="text-muted-foreground hover:text-foreground transition-smooth"
+            >
               Community
-            </a>
+            </button>
             <a href="#about" className="text-muted-foreground hover:text-foreground transition-smooth">
               About
             </a>
@@ -35,10 +51,10 @@ const Navbar = () => {
           
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center space-x-3">
-            <Button variant="ghost">
+            <Button variant="ghost" onClick={handleLogin}>
               Log In
             </Button>
-            <Button variant="hero">
+            <Button variant="hero" onClick={handleSignUp}>
               Sign Up
             </Button>
           </div>
@@ -61,20 +77,26 @@ const Navbar = () => {
               <a href="#features" className="px-4 py-2 text-muted-foreground hover:text-foreground transition-smooth">
                 Features
               </a>
-              <a href="#leaderboard" className="px-4 py-2 text-muted-foreground hover:text-foreground transition-smooth">
+              <button 
+                onClick={() => navigate('/leaderboard')} 
+                className="px-4 py-2 text-left text-muted-foreground hover:text-foreground transition-smooth"
+              >
                 Leaderboard
-              </a>
-              <a href="#community" className="px-4 py-2 text-muted-foreground hover:text-foreground transition-smooth">
+              </button>
+              <button 
+                onClick={() => navigate('/community')} 
+                className="px-4 py-2 text-left text-muted-foreground hover:text-foreground transition-smooth"
+              >
                 Community
-              </a>
+              </button>
               <a href="#about" className="px-4 py-2 text-muted-foreground hover:text-foreground transition-smooth">
                 About
               </a>
               <div className="flex flex-col space-y-2 px-4 pt-2">
-                <Button variant="ghost" className="justify-start">
+                <Button variant="ghost" className="justify-start" onClick={handleLogin}>
                   Log In
                 </Button>
-                <Button variant="hero" className="justify-start">
+                <Button variant="hero" className="justify-start" onClick={handleSignUp}>
                   Sign Up
                 </Button>
               </div>

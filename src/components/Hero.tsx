@@ -54,10 +54,18 @@ const Hero = () => {
           
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button variant="hero" size="xl">
+            <Button 
+              variant="hero" 
+              size="xl"
+              onClick={() => window.location.href = '/auth'}
+            >
               Start Your Journey
             </Button>
-            <Button variant="outline" size="xl">
+            <Button 
+              variant="outline" 
+              size="xl"
+              onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+            >
               Learn More
             </Button>
           </div>
@@ -65,16 +73,16 @@ const Hero = () => {
           {/* Stats */}
           <div className="mt-16 grid grid-cols-3 gap-8 max-w-2xl mx-auto">
             <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-primary">1,247</div>
+              <div className="text-3xl md:text-4xl font-bold text-primary">0</div>
               <div className="text-sm text-muted-foreground">Active Users</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-streak">89,230</div>
+              <div className="text-3xl md:text-4xl font-bold text-streak">0</div>
               <div className="text-sm text-muted-foreground">Total Streaks</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-warning">456</div>
-              <div className="text-sm text-muted-foreground">Days Record</div>
+              <div className="text-3xl md:text-4xl font-bold text-warning">0</div>
+              <div className="text-sm text-muted-foreground">Best Streak</div>
             </div>
           </div>
         </div>
