@@ -8,33 +8,60 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 265 89% 78%;
+    --primary-foreground: 240 10% 3.9%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 265 89% 78%;
+
+    /* Custom StreakHub Design Tokens */
+    --streak-green: 142 76% 36%;
+    --streak-green-light: 142 69% 58%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 98%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 240 10% 3.9%;
+    
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 98%;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(265, 89%, 78%), hsl(217, 91%, 60%));
+    --gradient-streak: linear-gradient(135deg, hsl(142, 76%, 36%), hsl(142, 69%, 58%));
+    --gradient-card: linear-gradient(135deg, hsl(240, 3.7%, 15.9%), hsl(240, 10%, 3.9%));
+    --gradient-hero: linear-gradient(135deg, hsl(240, 10%, 3.9%) 0%, hsl(265, 89%, 78%) 100%);
+    
+    /* Shadows */
+    --shadow-glow: 0 0 40px hsl(265, 89%, 78%, 0.3);
+    --shadow-streak: 0 0 20px hsl(142, 76%, 36%, 0.4);
+    --shadow-card: 0 10px 25px hsl(240, 10%, 3.9%, 0.5);
+    
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
     --radius: 0.5rem;
 
@@ -101,5 +128,88 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* Custom component styles using design system tokens */
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+  
+  .gradient-streak {
+    background: var(--gradient-streak);
+  }
+  
+  .gradient-card {
+    background: var(--gradient-card);
+  }
+  
+  .gradient-hero {
+    background: var(--gradient-hero);
+  }
+  
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+  
+  .shadow-streak {
+    box-shadow: var(--shadow-streak);
+  }
+  
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+  
+  .transition-bounce {
+    transition: var(--transition-bounce);
+  }
+  
+  .streak-celebration {
+    animation: streakPulse 0.6s ease-out;
+  }
+  
+  @keyframes streakPulse {
+    0% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 hsl(var(--streak-green));
+    }
+    70% {
+      transform: scale(1.05);
+      box-shadow: 0 0 0 10px hsla(var(--streak-green), 0);
+    }
+    100% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 hsla(var(--streak-green), 0);
+    }
+  }
+  
+  .progress-glow {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .progress-glow::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, hsla(var(--primary), 0.4), transparent);
+    animation: progressShine 2s infinite;
+  }
+  
+  @keyframes progressShine {
+    0% {
+      left: -100%;
+    }
+    100% {
+      left: 100%;
+    }
   }
 }
