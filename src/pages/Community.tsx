@@ -171,74 +171,74 @@ const Community = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/5">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-border/50 bg-background/95 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-4">
+      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <Button 
                 variant="ghost" 
-                size="icon" 
+                size="sm" 
                 onClick={() => navigate('/dashboard')}
-                className="hover:bg-accent/50"
+                className="hover:bg-accent"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-4 w-4" />
               </Button>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Hash className="h-6 w-6 text-primary" />
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-primary/10 rounded-lg">
+                  <Hash className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold">Community Chat</h1>
-                  <p className="text-sm text-muted-foreground">Connect with fellow developers</p>
+                  <h1 className="text-xl font-semibold">Community</h1>
+                  <p className="text-xs text-muted-foreground">Connect with developers</p>
                 </div>
               </div>
             </div>
-            <Badge variant="secondary" className="px-4 py-2 text-sm">
-              <Users className="h-4 w-4 mr-2" />
-              {onlineUsers} online
+            <Badge variant="outline" className="px-3 py-1">
+              <Users className="h-3 w-3 mr-1" />
+              {onlineUsers}
             </Badge>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
-        <Card className="h-[calc(100vh-240px)] flex flex-col shadow-lg border-border/50">
+      <div className="container mx-auto px-4 py-6 max-w-4xl">
+        <Card className="h-[calc(100vh-200px)] flex flex-col">
           {/* Messages Area */}
           <CardContent className="flex-1 p-0">
             <div className="h-full flex flex-col">
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.length === 0 ? (
-                  <div className="text-center py-16">
-                    <div className="bg-muted/50 rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-                      <MessageCircle className="h-12 w-12 text-muted-foreground" />
+                  <div className="text-center py-12">
+                    <div className="bg-muted/30 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                      <MessageCircle className="h-8 w-8 text-muted-foreground" />
                     </div>
-                    <h3 className="text-2xl font-semibold mb-3">Start the Conversation</h3>
-                    <p className="text-muted-foreground max-w-md mx-auto">
-                      Be the first to share your coding progress and motivate others in the community!
+                    <h3 className="text-lg font-medium mb-2">Start the conversation</h3>
+                    <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                      Share your coding journey and connect with fellow developers
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     {messages.map((msg) => (
-                      <div key={msg.id} className="flex gap-4 group hover:bg-accent/20 -mx-3 px-3 py-3 rounded-xl transition-all duration-200">
-                        <Avatar className="w-10 h-10 border-2 border-border/30">
+                      <div key={msg.id} className="flex gap-3 group hover:bg-accent/30 -mx-2 px-2 py-2 rounded-lg transition-colors">
+                        <Avatar className="w-8 h-8">
                           <AvatarImage src={msg.profiles?.avatar_url || undefined} />
-                          <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-medium">
+                          <AvatarFallback className="bg-primary/10 text-primary text-xs">
                             {getUserDisplayName(msg).slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className="font-semibold text-foreground">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-medium">
                               {getUserDisplayName(msg)}
                             </span>
-                            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                            <span className="text-xs text-muted-foreground">
                               {formatTime(msg.created_at)}
                             </span>
                           </div>
-                          <p className="text-sm text-foreground/90 leading-relaxed break-words">
+                          <p className="text-sm break-words">
                             {msg.message}
                           </p>
                         </div>
@@ -249,31 +249,30 @@ const Community = () => {
               </div>
               
               {/* Message Input */}
-              <div className="border-t border-border/50 p-6">
+              <div className="border-t p-4">
                 {user ? (
-                  <form onSubmit={handleSendMessage} className="flex gap-3">
+                  <form onSubmit={handleSendMessage} className="flex gap-2">
                     <Input
-                      placeholder="Share your thoughts with the community..."
+                      placeholder="Type a message..."
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      className="flex-1 h-12 text-base"
+                      className="flex-1"
                       disabled={loading}
                     />
                     <Button 
                       type="submit" 
-                      variant="default" 
-                      disabled={!message.trim() | loading}
-                      className="px-6 h-12"
+                      disabled={!message.trim() || loading}
+                      size="sm"
                     >
-                      <Send className="h-5 w-5" />
+                      <Send className="h-4 w-4" />
                     </Button>
                   </form>
                 ) : (
-                  <div className="text-center p-6 bg-muted/30 rounded-xl">
-                    <p className="text-muted-foreground mb-4 text-lg">
-                      Join the conversation
+                  <div className="text-center p-4 bg-muted/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Sign in to join the conversation
                     </p>
-                    <Button variant="default" onClick={() => navigate('/auth')} className="px-8">
+                    <Button size="sm" onClick={() => navigate('/auth')}>
                       Sign In
                     </Button>
                   </div>
@@ -283,31 +282,31 @@ const Community = () => {
           </CardContent>
         </Card>
 
-        {/* Community Guidelines */}
-        <Card className="mt-8 shadow-lg border-border/50">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl flex items-center gap-2">
-              <Hash className="h-5 w-5 text-primary" />
+        {/* Guidelines */}
+        <Card className="mt-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Hash className="h-4 w-4 text-primary" />
               Community Guidelines
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-start gap-3 p-3 bg-accent/30 rounded-lg">
-                <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0"></div>
-                <span className="text-sm text-foreground/80">Be respectful and supportive of fellow developers</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="flex items-start gap-2 p-2 bg-accent/20 rounded-md">
+                <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                <span className="text-xs">Be respectful and supportive</span>
               </div>
-              <div className="flex items-start gap-3 p-3 bg-accent/30 rounded-lg">
-                <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0"></div>
-                <span className="text-sm text-foreground/80">Share your coding progress and celebrate achievements</span>
+              <div className="flex items-start gap-2 p-2 bg-accent/20 rounded-md">
+                <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                <span className="text-xs">Share your coding progress</span>
               </div>
-              <div className="flex items-start gap-3 p-3 bg-accent/30 rounded-lg">
-                <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0"></div>
-                <span className="text-sm text-foreground/80">Ask questions and help others when you can</span>
+              <div className="flex items-start gap-2 p-2 bg-accent/20 rounded-md">
+                <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                <span className="text-xs">Ask questions and help others</span>
               </div>
-              <div className="flex items-start gap-3 p-3 bg-accent/30 rounded-lg">
-                <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0"></div>
-                <span className="text-sm text-foreground/80">Keep discussions relevant to coding and programming</span>
+              <div className="flex items-start gap-2 p-2 bg-accent/20 rounded-md">
+                <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                <span className="text-xs">Keep discussions coding-related</span>
               </div>
             </div>
           </CardContent>
