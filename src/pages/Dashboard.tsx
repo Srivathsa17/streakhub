@@ -106,7 +106,7 @@ const Dashboard = () => {
                 <div className="text-muted-foreground mb-4">
                   Haven't logged today's activity yet
                 </div>
-                <Button variant="hero" className="w-full">
+                <Button variant="hero" className="w-full" onClick={() => console.log('Log progress clicked')}>
                   <Plus className="h-4 w-4 mr-2" />
                   Log Today's Progress
                 </Button>
@@ -130,7 +130,7 @@ const Dashboard = () => {
                 <div className="text-muted-foreground mb-4">
                   No goals set yet
                 </div>
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full" onClick={() => console.log('Create goal clicked')}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create Your First Goal
                 </Button>
