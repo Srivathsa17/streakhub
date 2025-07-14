@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -11,7 +12,7 @@ All colors MUST be HSL.
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
 
-    --card: 240 10% 3.9%;
+    --card: 240 8% 6%;
     --card-foreground: 0 0% 98%;
 
     --popover: 240 10% 3.9%;
@@ -23,20 +24,20 @@ All colors MUST be HSL.
     --secondary: 240 3.7% 15.9%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 240 3.7% 15.9%;
+    --muted: 240 5% 12%;
     --muted-foreground: 240 5% 64.9%;
 
-    --accent: 240 3.7% 15.9%;
+    --accent: 240 6% 10%;
     --accent-foreground: 0 0% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
+    --border: 240 6% 20%;
+    --input: 240 6% 20%;
     --ring: 265 89% 78%;
 
-    /* Custom StreakHub Design Tokens */
+    /* Custom StreakHub Design Tokens - JetBrains inspired */
     --streak-green: 142 76% 36%;
     --streak-green-light: 142 69% 58%;
     --success: 142 76% 36%;
@@ -48,65 +49,50 @@ All colors MUST be HSL.
     --info: 217 91% 60%;
     --info-foreground: 0 0% 98%;
     
-    /* Gradients */
+    /* JetBrains-inspired gradients */
     --gradient-primary: linear-gradient(135deg, hsl(265, 89%, 78%), hsl(217, 91%, 60%));
     --gradient-streak: linear-gradient(135deg, hsl(142, 76%, 36%), hsl(142, 69%, 58%));
-    --gradient-card: linear-gradient(135deg, hsl(240, 3.7%, 15.9%), hsl(240, 10%, 3.9%));
+    --gradient-card: linear-gradient(135deg, hsl(240, 6%, 10%), hsl(240, 8%, 6%));
     --gradient-hero: linear-gradient(135deg, hsl(240, 10%, 3.9%) 0%, hsl(265, 89%, 78%) 100%);
     
-    /* Shadows */
-    --shadow-glow: 0 0 40px hsl(265, 89%, 78%, 0.3);
-    --shadow-streak: 0 0 20px hsl(142, 76%, 36%, 0.4);
-    --shadow-card: 0 10px 25px hsl(240, 10%, 3.9%, 0.5);
+    /* JetBrains-inspired shadows */
+    --shadow-glow: 0 0 30px hsl(265, 89%, 78%, 0.2);
+    --shadow-streak: 0 0 15px hsl(142, 76%, 36%, 0.3);
+    --shadow-card: 0 4px 20px hsl(240, 10%, 3.9%, 0.6);
     
-    /* Animations */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    /* Smooth transitions */
+    --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
-
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
-
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-
     --primary: 210 40% 98%;
     --primary-foreground: 222.2 47.4% 11.2%;
-
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
-
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
-
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
@@ -127,12 +113,13 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
 @layer components {
-  /* Custom component styles using design system tokens */
+  /* JetBrains-inspired component styles */
   .gradient-primary {
     background: var(--gradient-primary);
   }
@@ -169,6 +156,7 @@ All colors MUST be HSL.
     transition: var(--transition-bounce);
   }
   
+  /* JetBrains-inspired animations */
   .streak-celebration {
     animation: streakPulse 0.6s ease-out;
   }
@@ -211,5 +199,21 @@ All colors MUST be HSL.
     100% {
       left: 100%;
     }
+  }
+
+  /* JetBrains-inspired code editor styling */
+  .jetbrains-card {
+    @apply bg-card border-border transition-smooth;
+    border-width: 1px;
+    border-style: solid;
+  }
+  
+  .jetbrains-card:hover {
+    @apply border-border bg-accent/5;
+  }
+  
+  .jetbrains-button {
+    @apply bg-accent/10 border-border hover:bg-accent/20 transition-smooth;
+    border-width: 1px;
   }
 }

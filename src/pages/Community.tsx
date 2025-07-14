@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MessageCircle, Send, Users, ArrowLeft, Hash } from 'lucide-react';
+import { MessageCircle, Send, Users, ArrowLeft, Hash, Code2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,7 +45,7 @@ const Community = () => {
         table: 'chat_messages'
       }, (payload) => {
         console.log('New message received:', payload);
-        loadMessages(); // Reload all messages to get profile info
+        loadMessages();
       })
       .subscribe();
 
@@ -84,7 +84,7 @@ const Community = () => {
 
   const loadMessages = async () => {
     try {
-      // First get messages
+      // Get messages
       const { data: messagesData, error: messagesError } = await supabase
         .from('chat_messages')
         .select('*')
@@ -101,8 +101,14 @@ const Community = () => {
         return;
       }
 
-      // Then get profiles for each unique user_id
+      // Get profiles for each unique user_id
       const userIds = [...new Set(messagesData.map(msg => msg.user_id))];
+      
+      if (userIds.length === 0) {
+        setMessages(messagesData.map(msg => ({ ...msg, profiles: null })));
+        return;
+      }
+
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('user_id, username, display_name, avatar_url')
@@ -165,56 +171,66 @@ const Community = () => {
   };
 
   const getUserDisplayName = (msg: Message) => {
-    if (msg.profiles?.display_name) return msg.profiles.display_name;
-    if (msg.profiles?.username) return msg.profiles.username;
-    return msg.user_id.slice(0, 8);
+    if (!msg.profiles) {
+      // Fallback to email if no profile found
+      return user?.email?.split('@')[0] || 'Anonymous';
+    }
+    
+    if (msg.profiles.display_name) return msg.profiles.display_name;
+    if (msg.profiles.username) return msg.profiles.username;
+    return 'Anonymous';
+  };
+
+  const getUserInitials = (msg: Message) => {
+    const displayName = getUserDisplayName(msg);
+    return displayName.slice(0, 2).toUpperCase();
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/5">
-      {/* Header */}
-      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="container mx-auto px-4 py-3">
+    <div className="min-h-screen bg-background">
+      {/* JetBrains-inspired Header */}
+      <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
+        <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={() => navigate('/dashboard')}
-                className="hover:bg-accent"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <div className="p-1.5 bg-primary/10 rounded-lg">
                   <Hash className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-semibold">Community</h1>
-                  <p className="text-xs text-muted-foreground">Connect with developers</p>
+                  <h1 className="text-xl font-semibold text-foreground">Community</h1>
+                  <p className="text-xs text-muted-foreground">Developer discussions</p>
                 </div>
               </div>
             </div>
-            <Badge variant="outline" className="px-3 py-1">
-              <Users className="h-3 w-3 mr-1" />
-              {onlineUsers}
+            <Badge variant="outline" className="px-3 py-1 border-border">
+              <Users className="h-3 w-3 mr-2" />
+              <span className="text-foreground">{onlineUsers} online</span>
             </Badge>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
-        <Card className="h-[calc(100vh-200px)] flex flex-col">
+      <div className="container mx-auto px-6 py-6 max-w-5xl">
+        <Card className="h-[calc(100vh-180px)] flex flex-col bg-card border-border">
           {/* Messages Area */}
           <CardContent className="flex-1 p-0">
             <div className="h-full flex flex-col">
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="flex-1 overflow-y-auto p-6 bg-card">
                 {messages.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="bg-muted/30 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                  <div className="text-center py-16">
+                    <div className="bg-accent/20 rounded-lg p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                       <MessageCircle className="h-8 w-8 text-muted-foreground" />
                     </div>
-                    <h3 className="text-lg font-medium mb-2">Start the conversation</h3>
+                    <h3 className="text-lg font-medium mb-2 text-foreground">Start the conversation</h3>
                     <p className="text-sm text-muted-foreground max-w-sm mx-auto">
                       Share your coding journey and connect with fellow developers
                     </p>
@@ -222,23 +238,23 @@ const Community = () => {
                 ) : (
                   <div className="space-y-4">
                     {messages.map((msg) => (
-                      <div key={msg.id} className="flex gap-3 group hover:bg-accent/30 -mx-2 px-2 py-2 rounded-lg transition-colors">
-                        <Avatar className="w-8 h-8">
+                      <div key={msg.id} className="flex gap-3 group hover:bg-accent/30 -mx-3 px-3 py-2 rounded-lg transition-colors">
+                        <Avatar className="w-8 h-8 flex-shrink-0">
                           <AvatarImage src={msg.profiles?.avatar_url || undefined} />
-                          <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                            {getUserDisplayName(msg).slice(0, 2).toUpperCase()}
+                          <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
+                            {getUserInitials(msg)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-medium">
+                            <span className="text-sm font-medium text-foreground">
                               {getUserDisplayName(msg)}
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {formatTime(msg.created_at)}
                             </span>
                           </div>
-                          <p className="text-sm break-words">
+                          <p className="text-sm text-foreground/90 break-words leading-relaxed">
                             {msg.message}
                           </p>
                         </div>
@@ -249,26 +265,27 @@ const Community = () => {
               </div>
               
               {/* Message Input */}
-              <div className="border-t p-4">
+              <div className="border-t border-border p-4 bg-card">
                 {user ? (
-                  <form onSubmit={handleSendMessage} className="flex gap-2">
+                  <form onSubmit={handleSendMessage} className="flex gap-3">
                     <Input
                       placeholder="Type a message..."
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      className="flex-1"
+                      className="flex-1 bg-background border-border focus:border-primary"
                       disabled={loading}
                     />
                     <Button 
                       type="submit" 
                       disabled={!message.trim() || loading}
                       size="sm"
+                      className="px-4"
                     >
                       <Send className="h-4 w-4" />
                     </Button>
                   </form>
                 ) : (
-                  <div className="text-center p-4 bg-muted/20 rounded-lg">
+                  <div className="text-center p-4 bg-accent/20 rounded-lg border border-border">
                     <p className="text-sm text-muted-foreground mb-3">
                       Sign in to join the conversation
                     </p>
@@ -283,31 +300,26 @@ const Community = () => {
         </Card>
 
         {/* Guidelines */}
-        <Card className="mt-6">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Hash className="h-4 w-4 text-primary" />
+        <Card className="mt-6 bg-card border-border">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg flex items-center gap-2 text-foreground">
+              <Code2 className="h-4 w-4 text-primary" />
               Community Guidelines
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="flex items-start gap-2 p-2 bg-accent/20 rounded-md">
-                <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
-                <span className="text-xs">Be respectful and supportive</span>
-              </div>
-              <div className="flex items-start gap-2 p-2 bg-accent/20 rounded-md">
-                <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
-                <span className="text-xs">Share your coding progress</span>
-              </div>
-              <div className="flex items-start gap-2 p-2 bg-accent/20 rounded-md">
-                <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
-                <span className="text-xs">Ask questions and help others</span>
-              </div>
-              <div className="flex items-start gap-2 p-2 bg-accent/20 rounded-md">
-                <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
-                <span className="text-xs">Keep discussions coding-related</span>
-              </div>
+              {[
+                "Be respectful and supportive",
+                "Share your coding progress", 
+                "Ask questions and help others",
+                "Keep discussions coding-related"
+              ].map((guideline, index) => (
+                <div key={index} className="flex items-start gap-3 p-3 bg-accent/10 rounded-lg border border-border/50">
+                  <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                  <span className="text-sm text-foreground/80">{guideline}</span>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
