@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Flame, Trophy, Target, Users, Calendar, MessageCircle, Settings, Code2, GitBranch } from 'lucide-react';
+import { Flame, Trophy, Target, Users, Calendar, MessageCircle, Settings, Code2, GitBranch, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +17,22 @@ interface UserStats {
   rank: string;
 }
 
+interface RecentStreak {
+  id: string;
+  date: string;
+  description: string;
+  xp_earned: number;
+}
+
+interface Goal {
+  id: string;
+  title: string;
+  description: string;
+  target_date: string;
+  xp_reward: number;
+  completed: boolean;
+}
+
 const Dashboard = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -26,19 +42,21 @@ const Dashboard = () => {
     activeGoals: 0,
     rank: '-'
   });
+  const [recentStreaks, setRecentStreaks] = useState<RecentStreak[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
-      fetchUserStats();
+      fetchDashboardData();
     }
   }, [user]);
 
-  const fetchUserStats = async () => {
+  const fetchDashboardData = async () => {
     if (!user) return;
 
     try {
-      // Fetch streaks to calculate current streak and total XP
+      // Fetch streaks
       const { data: streaks, error: streaksError } = await supabase
         .from('streaks')
         .select('*')
@@ -49,12 +67,12 @@ const Dashboard = () => {
         console.error('Error fetching streaks:', streaksError);
       }
 
-      // Fetch active goals
-      const { data: goals, error: goalsError } = await supabase
+      // Fetch goals
+      const { data: goalsData, error: goalsError } = await supabase
         .from('goals')
         .select('*')
         .eq('user_id', user.id)
-        .eq('completed', false);
+        .order('created_at', { ascending: false });
 
       if (goalsError) {
         console.error('Error fetching goals:', goalsError);
@@ -66,13 +84,11 @@ const Dashboard = () => {
         const today = new Date().toISOString().split('T')[0];
         const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
         
-        // Check if user logged today or yesterday to start counting
         const latestEntry = streaks[0];
         if (latestEntry.date === today || latestEntry.date === yesterday) {
           const streakDates = new Set(streaks.map(s => s.date));
           let checkDate = new Date();
           
-          // If latest entry is yesterday, start from yesterday
           if (latestEntry.date === yesterday) {
             checkDate = new Date(Date.now() - 86400000);
           }
@@ -86,15 +102,23 @@ const Dashboard = () => {
 
       // Calculate total XP
       const totalXP = streaks?.reduce((sum, streak) => sum + streak.xp_earned, 0) || 0;
+      const activeGoals = goalsData?.filter(goal => !goal.completed).length || 0;
 
       setStats({
         currentStreak,
         totalXP,
-        activeGoals: goals?.length || 0,
+        activeGoals,
         rank: totalXP > 100 ? 'Advanced' : totalXP > 50 ? 'Intermediate' : 'Beginner'
       });
+
+      // Set recent streaks (last 5)
+      setRecentStreaks(streaks?.slice(0, 5) || []);
+      
+      // Set goals
+      setGoals(goalsData || []);
+
     } catch (error) {
-      console.error('Error fetching user stats:', error);
+      console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
     }
@@ -106,11 +130,16 @@ const Dashboard = () => {
   };
 
   const handleProgressLogged = () => {
-    fetchUserStats(); // Refresh stats after logging progress
+    fetchDashboardData(); // Refresh all data
   };
 
   const handleGoalCreated = () => {
-    fetchUserStats(); // Refresh stats after creating goal
+    fetchDashboardData(); // Refresh all data
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
   };
 
   if (loading) {
@@ -163,7 +192,7 @@ const Dashboard = () => {
       </header>
 
       <div className="container mx-auto px-6 py-8">
-        {/* Stats Grid - JetBrains-inspired cards */}
+        {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Card className="bg-card border-border hover:bg-accent/5 transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
@@ -218,29 +247,45 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Main Content - JetBrains layout */}
+        {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Today's Activity */}
+          {/* Today's Activity & Recent Streaks */}
           <Card className="bg-card border-border">
             <CardHeader className="border-b border-border/50">
               <CardTitle className="flex items-center gap-2 text-foreground">
                 <Calendar className="h-5 w-5 text-primary" />
-                Today's Activity
+                Recent Activity
               </CardTitle>
               <CardDescription className="text-muted-foreground">
-                Track your daily coding progress
+                Your latest coding sessions
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-accent/20 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <GitBranch className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <p className="text-muted-foreground mb-6 text-sm">
-                  Ready to log today's coding session?
-                </p>
+              <div className="mb-6">
                 <LogProgressDialog onSuccess={handleProgressLogged} />
               </div>
+              
+              {recentStreaks.length > 0 ? (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-3">Recent Sessions</h4>
+                  {recentStreaks.map((streak) => (
+                    <div key={streak.id} className="flex items-center justify-between p-3 bg-accent/20 rounded-lg">
+                      <div className="flex-1">
+                        <p className="text-sm text-foreground">{streak.description}</p>
+                        <p className="text-xs text-muted-foreground">{formatDate(streak.date)}</p>
+                      </div>
+                      <Badge variant="secondary" className="ml-2">
+                        +{streak.xp_earned} XP
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <GitBranch className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">No sessions logged yet</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -252,24 +297,48 @@ const Dashboard = () => {
                 Your Goals
               </CardTitle>
               <CardDescription className="text-muted-foreground">
-                Set and track your objectives
+                Track your objectives and milestones
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-accent/20 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <Target className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <p className="text-muted-foreground mb-6 text-sm">
-                  {stats.activeGoals === 0 ? 'No goals set yet' : `${stats.activeGoals} active goals`}
-                </p>
+              <div className="mb-6">
                 <CreateGoalDialog onSuccess={handleGoalCreated} />
               </div>
+              
+              {goals.length > 0 ? (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-3">Active Goals</h4>
+                  {goals.filter(goal => !goal.completed).map((goal) => (
+                    <div key={goal.id} className="p-4 bg-accent/20 rounded-lg">
+                      <div className="flex items-start justify-between mb-2">
+                        <h5 className="font-medium text-foreground">{goal.title}</h5>
+                        <Badge variant="outline" className="ml-2">
+                          {goal.xp_reward} XP
+                        </Badge>
+                      </div>
+                      {goal.description && (
+                        <p className="text-sm text-muted-foreground mb-2">{goal.description}</p>
+                      )}
+                      {goal.target_date && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          Due: {formatDate(goal.target_date)}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <Target className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">No goals set yet</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Quick Actions - JetBrains style */}
+        {/* Quick Actions */}
         <Card className="bg-card border-border">
           <CardHeader className="border-b border-border/50">
             <CardTitle className="text-foreground">Quick Actions</CardTitle>

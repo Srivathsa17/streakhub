@@ -12,9 +12,10 @@ import { Target, Plus } from 'lucide-react';
 
 interface CreateGoalDialogProps {
   onSuccess?: () => void;
+  hasExistingGoals?: boolean;
 }
 
-const CreateGoalDialog = ({ onSuccess }: CreateGoalDialogProps) => {
+const CreateGoalDialog = ({ onSuccess, hasExistingGoals = false }: CreateGoalDialogProps) => {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -68,9 +69,9 @@ const CreateGoalDialog = ({ onSuccess }: CreateGoalDialogProps) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="border-border hover:bg-accent">
+        <Button variant={hasExistingGoals ? "outline" : "outline"} className="w-full border-border hover:bg-accent">
           <Plus className="h-4 w-4 mr-2" />
-          Create Your First Goal
+          {hasExistingGoals ? 'Create New Goal' : 'Create Your First Goal'}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md bg-card border-border">

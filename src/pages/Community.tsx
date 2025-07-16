@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageCircle, Send, ArrowLeft, Users, Code2 } from 'lucide-react';
+import { MessageCircle, Send, ArrowLeft, Users, Code2, Shield, Heart, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -210,7 +210,33 @@ const Community = () => {
       </header>
 
       <div className="container mx-auto px-4 py-6 max-w-4xl">
-        <Card className="h-[calc(100vh-12rem)] bg-card border-border shadow-card">
+        {/* Community Guidelines */}
+        <Card className="mb-6 bg-gradient-to-r from-primary/5 to-info/5 border-primary/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Shield className="h-4 w-4 text-primary" />
+              Community Guidelines
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div className="flex items-center gap-2">
+                <Heart className="h-3 w-3 text-destructive" />
+                <span>Be respectful and kind to everyone</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Code2 className="h-3 w-3 text-info" />
+                <span>Keep discussions coding-related</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Zap className="h-3 w-3 text-warning" />
+                <span>Share knowledge and learn together</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="h-[calc(100vh-16rem)] bg-card border-border shadow-card">
           <CardHeader className="border-b border-border/50 pb-4">
             <CardTitle className="flex items-center gap-2">
               <Code2 className="h-5 w-5 text-primary" />
@@ -278,7 +304,7 @@ const Community = () => {
                 </Button>
               </form>
               <p className="text-xs text-muted-foreground mt-2">
-                Be respectful and keep the conversation coding-related.
+                Be respectful and keep the conversation coding-related. Let's build an amazing community together! 🚀
               </p>
             </div>
           </CardContent>
