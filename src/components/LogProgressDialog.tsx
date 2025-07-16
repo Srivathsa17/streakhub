@@ -106,7 +106,7 @@ const LogProgressDialog = ({ onSuccess }: LogProgressDialogProps) => {
               {loading ? 'Logging...' : 'Log Progress'}
             </Button>
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
