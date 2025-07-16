@@ -149,9 +149,26 @@ const Community = () => {
     return 'Anonymous User';
   };
 
-  const formatTime = (dateString: string) => {
+  const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const isYesterday = date.toDateString() === new Date(now.getTime() - 86400000).toDateString();
+    
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    if (isToday) {
+      return `Today at ${timeStr}`;
+    } else if (isYesterday) {
+      return `Yesterday at ${timeStr}`;
+    } else {
+      return date.toLocaleDateString([], { 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    }
   };
 
   if (loading) {
@@ -228,7 +245,7 @@ const Community = () => {
                             {getDisplayName(message)}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {formatTime(message.created_at)}
+                            {formatDateTime(message.created_at)}
                           </span>
                         </div>
                         <p className="text-sm text-foreground break-words">

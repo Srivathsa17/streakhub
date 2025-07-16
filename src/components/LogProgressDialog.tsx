@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,20 +25,55 @@ const LogProgressDialog = ({ onSuccess }: LogProgressDialogProps) => {
 
     setLoading(true);
     try {
-      const { error } = await supabase
+      const today = new Date().toISOString().split('T')[0];
+      
+      // First, check if there's already an entry for today
+      const { data: existingStreak, error: checkError } = await supabase
         .from('streaks')
-        .insert({
-          user_id: user.id,
-          description: description.trim(),
-          date: new Date().toISOString().split('T')[0]
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        // PGRST116 is "not found" error, which is expected if no entry exists
+        throw checkError;
+      }
+
+      if (existingStreak) {
+        // Update existing entry
+        const { error: updateError } = await supabase
+          .from('streaks')
+          .update({ 
+            description: description.trim(),
+            xp_earned: 10 
+          })
+          .eq('id', existingStreak.id);
+
+        if (updateError) throw updateError;
+
+        toast({
+          title: "Progress updated!",
+          description: "Your coding progress for today has been updated.",
         });
+      } else {
+        // Create new entry
+        const { error: insertError } = await supabase
+          .from('streaks')
+          .insert({
+            user_id: user.id,
+            description: description.trim(),
+            date: today,
+            xp_earned: 10
+          });
 
-      if (error) throw error;
+        if (insertError) throw insertError;
 
-      toast({
-        title: "Progress logged!",
-        description: "Your coding streak has been updated.",
-      });
+        toast({
+          title: "Progress logged!",
+          description: "Your coding streak has been updated.",
+        });
+      }
 
       setDescription('');
       setOpen(false);
