@@ -27,53 +27,24 @@ const LogProgressDialog = ({ onSuccess }: LogProgressDialogProps) => {
     try {
       const today = new Date().toISOString().split('T')[0];
       
-      // First, check if there's already an entry for today
-      const { data: existingStreak, error: checkError } = await supabase
+      // Use upsert to handle duplicate entries gracefully
+      const { error } = await supabase
         .from('streaks')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .single();
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        // PGRST116 is "not found" error, which is expected if no entry exists
-        throw checkError;
-      }
-
-      if (existingStreak) {
-        // Update existing entry
-        const { error: updateError } = await supabase
-          .from('streaks')
-          .update({ 
-            description: description.trim(),
-            xp_earned: 10 
-          })
-          .eq('id', existingStreak.id);
-
-        if (updateError) throw updateError;
-
-        toast({
-          title: "Progress updated!",
-          description: "Your coding progress for today has been updated.",
+        .upsert({
+          user_id: user.id,
+          date: today,
+          description: description.trim(),
+          xp_earned: 10
+        }, {
+          onConflict: 'user_id,date'
         });
-      } else {
-        // Create new entry
-        const { error: insertError } = await supabase
-          .from('streaks')
-          .insert({
-            user_id: user.id,
-            description: description.trim(),
-            date: today,
-            xp_earned: 10
-          });
 
-        if (insertError) throw insertError;
+      if (error) throw error;
 
-        toast({
-          title: "Progress logged!",
-          description: "Your coding streak has been updated.",
-        });
-      }
+      toast({
+        title: "Progress logged!",
+        description: "Your coding streak has been updated.",
+      });
 
       setDescription('');
       setOpen(false);
@@ -135,7 +106,7 @@ const LogProgressDialog = ({ onSuccess }: LogProgressDialogProps) => {
               {loading ? 'Logging...' : 'Log Progress'}
             </Button>
           </div>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

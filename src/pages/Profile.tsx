@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -77,23 +76,7 @@ const Profile = () => {
       const file = event.target.files[0];
       const fileExt = file.name.split('.').pop();
       const fileName = `${user?.id}-${Math.random()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
-
-      // First, create the avatars bucket if it doesn't exist
-      const { error: bucketError } = await supabase.storage
-        .from('avatars')
-        .list('', { limit: 1 });
-
-      if (bucketError && bucketError.message.includes('does not exist')) {
-        // Create bucket
-        const { error: createBucketError } = await supabase.storage.createBucket('avatars', {
-          public: true
-        });
-        
-        if (createBucketError) {
-          console.error('Error creating bucket:', createBucketError);
-        }
-      }
+      const filePath = `${user?.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
