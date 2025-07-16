@@ -5,11 +5,100 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Flame, Trophy, Target, Users, Calendar, MessageCircle, Settings, Code2, GitBranch } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import LogProgressDialog from '@/components/LogProgressDialog';
+import CreateGoalDialog from '@/components/CreateGoalDialog';
+
+interface UserStats {
+  currentStreak: number;
+  totalXP: number;
+  activeGoals: number;
+  rank: string;
+}
 
 const Dashboard = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [stats, setStats] = useState<UserStats>({
+    currentStreak: 0,
+    totalXP: 0,
+    activeGoals: 0,
+    rank: '-'
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserStats();
+    }
+  }, [user]);
+
+  const fetchUserStats = async () => {
+    if (!user) return;
+
+    try {
+      // Fetch streaks to calculate current streak and total XP
+      const { data: streaks, error: streaksError } = await supabase
+        .from('streaks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false });
+
+      if (streaksError) {
+        console.error('Error fetching streaks:', streaksError);
+      }
+
+      // Fetch active goals
+      const { data: goals, error: goalsError } = await supabase
+        .from('goals')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('completed', false);
+
+      if (goalsError) {
+        console.error('Error fetching goals:', goalsError);
+      }
+
+      // Calculate current streak
+      let currentStreak = 0;
+      if (streaks && streaks.length > 0) {
+        const today = new Date().toISOString().split('T')[0];
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        
+        // Check if user logged today or yesterday to start counting
+        const latestEntry = streaks[0];
+        if (latestEntry.date === today || latestEntry.date === yesterday) {
+          const streakDates = new Set(streaks.map(s => s.date));
+          let checkDate = new Date();
+          
+          // If latest entry is yesterday, start from yesterday
+          if (latestEntry.date === yesterday) {
+            checkDate = new Date(Date.now() - 86400000);
+          }
+          
+          while (streakDates.has(checkDate.toISOString().split('T')[0])) {
+            currentStreak++;
+            checkDate = new Date(checkDate.getTime() - 86400000);
+          }
+        }
+      }
+
+      // Calculate total XP
+      const totalXP = streaks?.reduce((sum, streak) => sum + streak.xp_earned, 0) || 0;
+
+      setStats({
+        currentStreak,
+        totalXP,
+        activeGoals: goals?.length || 0,
+        rank: totalXP > 100 ? 'Advanced' : totalXP > 50 ? 'Intermediate' : 'Beginner'
+      });
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -17,9 +106,23 @@ const Dashboard = () => {
   };
 
   const handleProgressLogged = () => {
-    // Refresh dashboard data if needed
-    window.location.reload();
+    fetchUserStats(); // Refresh stats after logging progress
   };
+
+  const handleGoalCreated = () => {
+    fetchUserStats(); // Refresh stats after creating goal
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -68,9 +171,9 @@ const Dashboard = () => {
               <Flame className="h-4 w-4 text-streak" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-streak">0 days</div>
+              <div className="text-2xl font-bold text-streak">{stats.currentStreak} days</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Log today to continue
+                {stats.currentStreak === 0 ? 'Log today to start' : 'Keep it going!'}
               </p>
             </CardContent>
           </Card>
@@ -81,7 +184,7 @@ const Dashboard = () => {
               <Trophy className="h-4 w-4 text-warning" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-warning">0</div>
+              <div className="text-2xl font-bold text-warning">{stats.totalXP}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 Earn XP daily
               </p>
@@ -94,9 +197,9 @@ const Dashboard = () => {
               <Target className="h-4 w-4 text-info" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-info">0</div>
+              <div className="text-2xl font-bold text-info">{stats.activeGoals}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Set your goals
+                {stats.activeGoals === 0 ? 'Set your goals' : 'Keep pushing!'}
               </p>
             </CardContent>
           </Card>
@@ -107,9 +210,9 @@ const Dashboard = () => {
               <Users className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-primary">-</div>
+              <div className="text-2xl font-bold text-primary">{stats.rank}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Start logging
+                Based on XP
               </p>
             </CardContent>
           </Card>
@@ -158,11 +261,9 @@ const Dashboard = () => {
                   <Target className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <p className="text-muted-foreground mb-6 text-sm">
-                  No goals set yet
+                  {stats.activeGoals === 0 ? 'No goals set yet' : `${stats.activeGoals} active goals`}
                 </p>
-                <Button variant="outline" className="border-border hover:bg-accent">
-                  Create Your First Goal
-                </Button>
+                <CreateGoalDialog onSuccess={handleGoalCreated} />
               </div>
             </CardContent>
           </Card>
