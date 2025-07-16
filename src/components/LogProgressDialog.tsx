@@ -24,11 +24,13 @@ const LogProgressDialog = ({ onSuccess }: LogProgressDialogProps) => {
     if (!user || !description.trim()) return;
 
     setLoading(true);
+    console.log('Logging progress for user:', user.id, 'description:', description.trim());
+
     try {
       const today = new Date().toISOString().split('T')[0];
       
       // Use upsert to handle duplicate entries gracefully
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('streaks')
         .upsert({
           user_id: user.id,
@@ -37,18 +39,29 @@ const LogProgressDialog = ({ onSuccess }: LogProgressDialogProps) => {
           xp_earned: 10
         }, {
           onConflict: 'user_id,date'
-        });
+        })
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error logging progress:', error);
+        throw error;
+      }
+
+      console.log('Progress logged successfully:', data);
 
       toast({
         title: "Progress logged!",
-        description: "Your coding streak has been updated.",
+        description: "Your coding streak has been updated. +10 XP earned!",
       });
 
       setDescription('');
       setOpen(false);
-      onSuccess?.();
+      
+      // Call the success callback to refresh dashboard data
+      if (onSuccess) {
+        console.log('Calling onSuccess callback to refresh data');
+        onSuccess();
+      }
     } catch (error) {
       console.error('Error logging progress:', error);
       toast({
@@ -64,7 +77,7 @@ const LogProgressDialog = ({ onSuccess }: LogProgressDialogProps) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="hero" className="w-full">
+        <Button variant="default" className="w-full bg-primary hover:bg-primary/90">
           <Plus className="h-4 w-4 mr-2" />
           Log Today's Progress
         </Button>
@@ -103,7 +116,7 @@ const LogProgressDialog = ({ onSuccess }: LogProgressDialogProps) => {
               disabled={loading || !description.trim()}
               className="flex-1"
             >
-              {loading ? 'Logging...' : 'Log Progress'}
+              {loading ? 'Logging...' : 'Log Progress (+10 XP)'}
             </Button>
           </div>
         </form>
