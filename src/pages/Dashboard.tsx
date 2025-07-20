@@ -11,6 +11,7 @@ import EditGoalDialog from '@/components/EditGoalDialog';
 import LogProgressDialog from '@/components/LogProgressDialog';
 import FriendsLeaderboard from '@/components/FriendsLeaderboard';
 import FriendRequestNotifications from '@/components/FriendRequestNotifications';
+import AIGoalPlanner from '@/components/AIGoalPlanner';
 
 interface Goal {
   id: string;
@@ -194,7 +195,7 @@ const Dashboard = () => {
             <FriendRequestNotifications />
 
             {/* Streak Card */}
-            <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20">
+            <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20 jetbrains-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Flame className="h-6 w-6 text-streak" />
@@ -212,7 +213,7 @@ const Dashboard = () => {
             </Card>
 
             {/* XP Card */}
-            <Card className="bg-gradient-to-br from-secondary/10 to-muted/10 border-secondary/20">
+            <Card className="bg-gradient-to-br from-secondary/10 to-muted/10 border-secondary/20 jetbrains-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Trophy className="h-6 w-6 text-warning" />
@@ -229,18 +230,25 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
+            {/* AI Goal Planner */}
+            <AIGoalPlanner 
+              userProfile={{ totalXP, currentStreak }}
+              currentGoals={goals}
+              onGoalCreated={fetchGoals}
+            />
+
             {/* Quick Actions */}
-            <Card>
+            <Card className="jetbrains-card">
               <CardHeader>
                 <CardTitle>Quick Actions</CardTitle>
                 <CardDescription>Log progress or set new goals</CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Button onClick={() => setShowLogProgress(true)}>
+                <Button onClick={() => setShowLogProgress(true)} className="jetbrains-button">
                   <Flame className="h-4 w-4 mr-2" />
                   Log Progress
                 </Button>
-                <Button variant="secondary" onClick={() => setShowCreateGoal(true)}>
+                <Button variant="secondary" onClick={() => setShowCreateGoal(true)} className="jetbrains-button">
                   <Target className="h-4 w-4 mr-2" />
                   Set New Goal
                 </Button>
@@ -248,7 +256,7 @@ const Dashboard = () => {
             </Card>
 
             {/* Goals Section */}
-            <Card>
+            <Card className="jetbrains-card">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
                 <div>
                   <CardTitle className="flex items-center gap-2">
@@ -257,7 +265,7 @@ const Dashboard = () => {
                   </CardTitle>
                   <CardDescription>Track your coding objectives</CardDescription>
                 </div>
-                <Button onClick={() => setShowCreateGoal(true)}>
+                <Button onClick={() => setShowCreateGoal(true)} className="jetbrains-button">
                   <Plus className="h-4 w-4 mr-2" />
                   New Goal
                 </Button>
@@ -274,7 +282,7 @@ const Dashboard = () => {
                     <p className="text-muted-foreground text-sm mb-4">
                       Set your first coding goal to stay motivated!
                     </p>
-                    <Button onClick={() => setShowCreateGoal(true)}>
+                    <Button onClick={() => setShowCreateGoal(true)} className="jetbrains-button">
                       <Plus className="h-4 w-4 mr-2" />
                       Create Your First Goal
                     </Button>
@@ -282,7 +290,7 @@ const Dashboard = () => {
                 ) : (
                   <div className="space-y-4">
                     {goals.map((goal) => (
-                      <div key={goal.id} className="flex items-center justify-between p-4 bg-accent/20 rounded-lg">
+                      <div key={goal.id} className="flex items-center justify-between p-4 bg-accent/20 rounded-lg jetbrains-card">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <h4 className="font-medium">{goal.title}</h4>
@@ -314,6 +322,7 @@ const Dashboard = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => setEditingGoal(goal)}
+                            className="jetbrains-button"
                           >
                             <Edit className="h-3 w-3 mr-1" />
                             Edit
@@ -323,6 +332,7 @@ const Dashboard = () => {
                               size="sm"
                               onClick={() => completeGoal(goal.id, goal.xp_reward)}
                               disabled={completingGoal}
+                              className="jetbrains-button"
                             >
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Complete
@@ -333,32 +343,6 @@ const Dashboard = () => {
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Recent Activity */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Your latest coding milestones</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  No recent activity to display. Start coding to log your progress!
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Insights */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Insights</CardTitle>
-                <CardDescription>Tips to boost your coding journey</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Stay tuned for personalized insights to help you level up your skills!
-                </p>
               </CardContent>
             </Card>
           </div>
@@ -372,22 +356,16 @@ const Dashboard = () => {
 
       {/* Dialogs */}
       <CreateGoalDialog 
-        open={showCreateGoal}
-        onOpenChange={setShowCreateGoal}
         onGoalCreated={fetchGoals}
       />
 
       <LogProgressDialog 
-        open={showLogProgress}
-        onOpenChange={setShowLogProgress}
         onProgressLogged={fetchUserData}
       />
 
       {editingGoal && (
         <EditGoalDialog
           goal={editingGoal}
-          open={!!editingGoal}
-          onOpenChange={(open) => !open && setEditingGoal(null)}
           onGoalUpdated={fetchGoals}
         />
       )}
