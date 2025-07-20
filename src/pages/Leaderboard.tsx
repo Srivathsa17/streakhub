@@ -18,11 +18,22 @@ interface LeaderboardEntry {
   rank: number;
 }
 
+interface Profile {
+  user_id: string;
+  username: string | null;
+  display_name: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+  github_url: string | null;
+  linkedin_url: string | null;
+  instagram_url: string | null;
+}
+
 const Leaderboard = () => {
   const navigate = useNavigate();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedProfile, setSelectedProfile] = useState<LeaderboardEntry | null>(null);
+  const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
 
   useEffect(() => {
     fetchLeaderboard();
@@ -143,19 +154,24 @@ const Leaderboard = () => {
     }
   };
 
-  const handleProfileClick = (entry: LeaderboardEntry) => {
-    // Convert LeaderboardEntry to Profile format for the dialog
-    const profileData = {
-      user_id: entry.user_id,
-      username: entry.username || null,
-      display_name: entry.display_name || null,
-      bio: null, // Not available in leaderboard data
-      avatar_url: entry.avatar_url || null,
-      github_url: null, // Not available in leaderboard data
-      linkedin_url: null, // Not available in leaderboard data
-      instagram_url: null // Not available in leaderboard data
-    };
-    setSelectedProfile(profileData);
+  const handleProfileClick = async (entry: LeaderboardEntry) => {
+    try {
+      // Fetch full profile data including social links
+      const { data: fullProfile, error } = await supabase
+        .from('profiles')
+        .select('user_id, username, display_name, bio, avatar_url, github_url, linkedin_url, instagram_url')
+        .eq('user_id', entry.user_id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching full profile:', error);
+        return;
+      }
+
+      setSelectedProfile(fullProfile);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
   };
 
   if (loading) {

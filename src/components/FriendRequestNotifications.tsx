@@ -38,30 +38,50 @@ const FriendRequestNotifications = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      // First get the pending friend requests
+      const { data: requests, error: requestsError } = await supabase
         .from('friends')
-        .select(`
-          id,
-          user_id,
-          friend_user_id,
-          status,
-          created_at,
-          requester:profiles!friends_user_id_fkey(
-            display_name,
-            username,
-            avatar_url
-          )
-        `)
+        .select('id, user_id, friend_user_id, status, created_at')
         .eq('friend_user_id', user.id)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching friend requests:', error);
+      if (requestsError) {
+        console.error('Error fetching friend requests:', requestsError);
         return;
       }
 
-      setFriendRequests(data || []);
+      if (!requests || requests.length === 0) {
+        setFriendRequests([]);
+        return;
+      }
+
+      // Get the requester profile information
+      const requesterIds = requests.map(req => req.user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, display_name, username, avatar_url')
+        .in('user_id', requesterIds);
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        return;
+      }
+
+      // Combine the data
+      const requestsWithProfiles = requests.map(request => {
+        const profile = profiles?.find(p => p.user_id === request.user_id);
+        return {
+          ...request,
+          requester: {
+            display_name: profile?.display_name || null,
+            username: profile?.username || null,
+            avatar_url: profile?.avatar_url || null
+          }
+        };
+      });
+
+      setFriendRequests(requestsWithProfiles);
     } catch (error) {
       console.error('Error fetching friend requests:', error);
     }

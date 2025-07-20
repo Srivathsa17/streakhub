@@ -1,13 +1,15 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Trophy, Flame, Target, Plus, CheckCircle, Calendar, Edit, Users, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { CreateGoalDialog } from '@/components/CreateGoalDialog';
-import { EditGoalDialog } from '@/components/EditGoalDialog';
-import { LogProgressDialog } from '@/components/LogProgressDialog';
+import CreateGoalDialog from '@/components/CreateGoalDialog';
+import EditGoalDialog from '@/components/EditGoalDialog';
+import LogProgressDialog from '@/components/LogProgressDialog';
 import FriendsLeaderboard from '@/components/FriendsLeaderboard';
 import FriendRequestNotifications from '@/components/FriendRequestNotifications';
 
