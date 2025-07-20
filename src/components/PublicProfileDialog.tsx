@@ -27,11 +27,13 @@ interface PublicProfileDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type FriendStatus = 'none' | 'pending' | 'accepted' | 'blocked';
+
 const PublicProfileDialog = ({ profile, open, onOpenChange }: PublicProfileDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [friendStatus, setFriendStatus] = useState<'none' | 'pending' | 'accepted' | 'blocked'>('none');
+  const [friendStatus, setFriendStatus] = useState<FriendStatus>('none');
   const [userStats, setUserStats] = useState({ totalXP: 0, currentStreak: 0 });
 
   useEffect(() => {
@@ -56,7 +58,7 @@ const PublicProfileDialog = ({ profile, open, onOpenChange }: PublicProfileDialo
         return;
       }
 
-      setFriendStatus(data?.status || 'none');
+      setFriendStatus((data?.status as FriendStatus) || 'none');
     } catch (error) {
       console.error('Error fetching friend status:', error);
     }

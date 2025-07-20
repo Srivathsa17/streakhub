@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -145,7 +144,18 @@ const Leaderboard = () => {
   };
 
   const handleProfileClick = (entry: LeaderboardEntry) => {
-    setSelectedProfile(entry);
+    // Convert LeaderboardEntry to Profile format for the dialog
+    const profileData = {
+      user_id: entry.user_id,
+      username: entry.username || null,
+      display_name: entry.display_name || null,
+      bio: null, // Not available in leaderboard data
+      avatar_url: entry.avatar_url || null,
+      github_url: null, // Not available in leaderboard data
+      linkedin_url: null, // Not available in leaderboard data
+      instagram_url: null // Not available in leaderboard data
+    };
+    setSelectedProfile(profileData);
   };
 
   if (loading) {
