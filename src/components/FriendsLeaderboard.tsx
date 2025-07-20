@@ -32,7 +32,9 @@ const FriendsLeaderboard = () => {
     if (!user) return;
 
     try {
-      // Get accepted friends
+      console.log('Fetching friends stats for user:', user.id);
+
+      // Get accepted friends where the user is either the requester or the recipient
       const { data: friends, error: friendsError } = await supabase
         .from('friends')
         .select('user_id, friend_user_id')
@@ -45,13 +47,17 @@ const FriendsLeaderboard = () => {
         return;
       }
 
-      // Extract friend user IDs
+      console.log('Friends data:', friends);
+
+      // Extract friend user IDs (excluding current user)
       const friendUserIds = friends?.map(friend => 
         friend.user_id === user.id ? friend.friend_user_id : friend.user_id
-      ) || [];
+      ).filter(id => id !== user.id) || [];
 
-      // Add current user to the list
+      // Add current user to the list for comparison
       friendUserIds.push(user.id);
+
+      console.log('Friend user IDs:', friendUserIds);
 
       if (friendUserIds.length === 0) {
         setLoading(false);
@@ -67,6 +73,8 @@ const FriendsLeaderboard = () => {
       if (profilesError) {
         console.error('Error fetching profiles:', profilesError);
       }
+
+      console.log('Profiles data:', profiles);
 
       // Get stats for each friend
       const friendsWithStats: FriendStats[] = [];
@@ -94,6 +102,8 @@ const FriendsLeaderboard = () => {
           console.error(`Error fetching stats for user ${userId}:`, error);
         }
       }
+
+      console.log('Friends with stats:', friendsWithStats);
 
       // Sort by total XP and assign ranks
       friendsWithStats.sort((a, b) => b.total_xp - a.total_xp);

@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Flame, Target, Plus, CheckCircle, Calendar, Edit, Users, User } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Trophy, Flame, Target, Plus, CheckCircle, Calendar, Edit, Users, User, LogOut } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import CreateGoalDialog from '@/components/CreateGoalDialog';
@@ -23,7 +22,8 @@ interface Goal {
 }
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [currentStreak, setCurrentStreak] = useState(0);
   const [lastActivity, setLastActivity] = useState<string | null>(null);
   const [totalXP, setTotalXP] = useState(0);
@@ -38,6 +38,15 @@ const Dashboard = () => {
     fetchUserData();
     fetchGoals();
   }, [user]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   const fetchUserData = async () => {
     if (!user) return;
@@ -145,9 +154,11 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border bg-background/80 backdrop-blur-md">
+      <header className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            Dashboard
+          </h1>
           <div className="flex items-center gap-4">
             <Button variant="outline" asChild>
               <Link to="/leaderboard">
@@ -166,6 +177,10 @@ const Dashboard = () => {
                 <User className="h-4 w-4 mr-2" />
                 Profile
               </Link>
+            </Button>
+            <Button variant="outline" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
             </Button>
           </div>
         </div>
@@ -357,14 +372,14 @@ const Dashboard = () => {
 
       {/* Dialogs */}
       <CreateGoalDialog 
-        isOpen={showCreateGoal}
-        onClose={() => setShowCreateGoal(false)}
+        open={showCreateGoal}
+        onOpenChange={setShowCreateGoal}
         onGoalCreated={fetchGoals}
       />
 
       <LogProgressDialog 
-        isOpen={showLogProgress}
-        onClose={() => setShowLogProgress(false)}
+        open={showLogProgress}
+        onOpenChange={setShowLogProgress}
         onProgressLogged={fetchUserData}
       />
 
