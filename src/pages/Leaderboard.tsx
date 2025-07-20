@@ -2,10 +2,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Medal, Award, ArrowLeft, Flame, User } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Trophy, Medal, Award, ArrowLeft, Flame, User, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import PublicProfileDialog from '@/components/PublicProfileDialog';
 
 interface LeaderboardEntry {
   user_id: string;
@@ -13,6 +15,7 @@ interface LeaderboardEntry {
   current_streak: number;
   display_name?: string;
   username?: string;
+  avatar_url?: string;
   rank: number;
 }
 
@@ -20,6 +23,7 @@ const Leaderboard = () => {
   const navigate = useNavigate();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedProfile, setSelectedProfile] = useState<LeaderboardEntry | null>(null);
 
   useEffect(() => {
     fetchLeaderboard();
@@ -41,7 +45,7 @@ const Leaderboard = () => {
       // Get profiles data
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('user_id, display_name, username');
+        .select('user_id, display_name, username, avatar_url');
 
       if (profilesError) {
         console.error('Error fetching profiles:', profilesError);
@@ -104,6 +108,7 @@ const Leaderboard = () => {
           current_streak: stats.currentStreak,
           display_name: profile?.display_name,
           username: profile?.username,
+          avatar_url: profile?.avatar_url,
           rank: 0 // Will be set after sorting
         });
       });
@@ -139,6 +144,10 @@ const Leaderboard = () => {
     }
   };
 
+  const handleProfileClick = (entry: LeaderboardEntry) => {
+    setSelectedProfile(entry);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -161,7 +170,7 @@ const Leaderboard = () => {
           <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-2xl font-bold">Leaderboard</h1>
+          <h1 className="text-2xl font-bold">Global Leaderboard</h1>
         </div>
       </header>
 
@@ -171,10 +180,15 @@ const Leaderboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             {/* Second Place */}
             {topThree[1] && (
-              <Card className="order-2 md:order-1">
+              <Card className="order-2 md:order-1 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleProfileClick(topThree[1])}>
                 <CardHeader className="text-center pb-4">
                   <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center mb-2">
-                    {getRankIcon(2)}
+                    <Avatar className="w-14 h-14">
+                      <AvatarImage src={topThree[1].avatar_url || ''} />
+                      <AvatarFallback>
+                        {getRankIcon(2)}
+                      </AvatarFallback>
+                    </Avatar>
                   </div>
                   <Badge variant="secondary" className="mx-auto">2nd Place</Badge>
                 </CardHeader>
@@ -190,10 +204,15 @@ const Leaderboard = () => {
             )}
 
             {/* First Place */}
-            <Card className="order-1 md:order-2 transform md:scale-110 border-warning">
+            <Card className="order-1 md:order-2 transform md:scale-110 border-warning cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleProfileClick(topThree[0])}>
               <CardHeader className="text-center pb-4">
                 <div className="w-20 h-20 mx-auto bg-warning/20 rounded-full flex items-center justify-center mb-2">
-                  {getRankIcon(1)}
+                  <Avatar className="w-16 h-16">
+                    <AvatarImage src={topThree[0].avatar_url || ''} />
+                    <AvatarFallback>
+                      {getRankIcon(1)}
+                    </AvatarFallback>
+                  </Avatar>
                 </div>
                 <Badge variant="secondary" className="mx-auto bg-warning text-warning-foreground">Champion</Badge>
               </CardHeader>
@@ -209,10 +228,15 @@ const Leaderboard = () => {
 
             {/* Third Place */}
             {topThree[2] && (
-              <Card className="order-3">
+              <Card className="order-3 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleProfileClick(topThree[2])}>
                 <CardHeader className="text-center pb-4">
                   <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center mb-2">
-                    {getRankIcon(3)}
+                    <Avatar className="w-14 h-14">
+                      <AvatarImage src={topThree[2].avatar_url || ''} />
+                      <AvatarFallback>
+                        {getRankIcon(3)}
+                      </AvatarFallback>
+                    </Avatar>
                   </div>
                   <Badge variant="secondary" className="mx-auto">3rd Place</Badge>
                 </CardHeader>
@@ -234,7 +258,7 @@ const Leaderboard = () => {
           <CardHeader>
             <CardTitle>Full Rankings</CardTitle>
             <CardDescription>
-              Rankings are updated in real-time based on total XP earned
+              Rankings are updated in real-time based on total XP earned. Click on profiles to view details and connect!
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -252,11 +276,21 @@ const Leaderboard = () => {
             ) : (
               <div className="space-y-2">
                 {restOfLeaderboard.map((entry) => (
-                  <div key={entry.user_id} className="flex items-center justify-between p-4 bg-accent/20 rounded-lg">
+                  <div 
+                    key={entry.user_id} 
+                    className="flex items-center justify-between p-4 bg-accent/20 rounded-lg cursor-pointer hover:bg-accent/30 transition-colors"
+                    onClick={() => handleProfileClick(entry)}
+                  >
                     <div className="flex items-center gap-4">
                       <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
                         <span className="text-sm font-medium">#{entry.rank}</span>
                       </div>
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src={entry.avatar_url || ''} />
+                        <AvatarFallback>
+                          <User className="h-5 w-5" />
+                        </AvatarFallback>
+                      </Avatar>
                       <div>
                         <h4 className="font-medium">{getDisplayName(entry)}</h4>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -268,6 +302,9 @@ const Leaderboard = () => {
                         </div>
                       </div>
                     </div>
+                    <Button variant="ghost" size="sm">
+                      <UserPlus className="h-4 w-4" />
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -275,6 +312,15 @@ const Leaderboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Public Profile Dialog */}
+      {selectedProfile && (
+        <PublicProfileDialog
+          profile={selectedProfile}
+          open={!!selectedProfile}
+          onOpenChange={() => setSelectedProfile(null)}
+        />
+      )}
     </div>
   );
 };

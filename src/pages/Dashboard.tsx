@@ -1,52 +1,57 @@
 
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Flame, Trophy, Target, Users, Calendar, MessageCircle, Settings, Code2, GitBranch, Clock } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Plus, Target, Calendar, Trophy, Flame, User, Edit, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import LogProgressDialog from '@/components/LogProgressDialog';
-import CreateGoalDialog from '@/components/CreateGoalDialog';
 import { useToast } from '@/hooks/use-toast';
-
-interface UserStats {
-  currentStreak: number;
-  totalXP: number;
-  activeGoals: number;
-  rank: string;
-}
-
-interface RecentStreak {
-  id: string;
-  date: string;
-  description: string;
-  xp_earned: number;
-}
+import CreateGoalDialog from '@/components/CreateGoalDialog';
+import LogProgressDialog from '@/components/LogProgressDialog';
+import EditGoalDialog from '@/components/EditGoalDialog';
+import FriendsLeaderboard from '@/components/FriendsLeaderboard';
+import { format, isToday } from 'date-fns';
 
 interface Goal {
   id: string;
   title: string;
-  description: string;
-  target_date: string;
-  xp_reward: number;
+  description: string | null;
+  target_date: string | null;
   completed: boolean;
+  xp_reward: number;
+  created_at: string;
+}
+
+interface StreakEntry {
+  id: string;
+  date: string;
+  description: string | null;
+  xp_earned: number;
+  created_at: string;
+}
+
+interface UserStats {
+  totalXP: number;
+  currentStreak: number;
+  rank: number;
 }
 
 const Dashboard = () => {
-  const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { toast } = useToast();
-  const [stats, setStats] = useState<UserStats>({
-    currentStreak: 0,
-    totalXP: 0,
-    activeGoals: 0,
-    rank: 'Beginner'
-  });
-  const [recentStreaks, setRecentStreaks] = useState<RecentStreak[]>([]);
+  
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [recentLogs, setRecentLogs] = useState<StreakEntry[]>([]);
+  const [userStats, setUserStats] = useState<UserStats>({ totalXP: 0, currentStreak: 0, rank: 0 });
   const [loading, setLoading] = useState(true);
+  const [showCreateGoal, setShowCreateGoal] = useState(false);
+  const [showLogProgress, setShowLogProgress] = useState(false);
+  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
+  const [todayLogged, setTodayLogged] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -57,105 +62,140 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     if (!user) return;
 
-    console.log('Fetching dashboard data for user:', user.id);
-    setLoading(true);
-
     try {
-      // Fetch streaks
-      const { data: streaks, error: streaksError } = await supabase
-        .from('streaks')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('date', { ascending: false });
-
-      if (streaksError) {
-        console.error('Error fetching streaks:', streaksError);
-      } else {
-        console.log('Fetched streaks:', streaks);
-      }
-
-      // Fetch goals
-      const { data: goalsData, error: goalsError } = await supabase
-        .from('goals')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (goalsError) {
-        console.error('Error fetching goals:', goalsError);
-      } else {
-        console.log('Fetched goals:', goalsData);
-      }
-
-      // Calculate current streak
-      let currentStreak = 0;
-      if (streaks && streaks.length > 0) {
-        const today = new Date().toISOString().split('T')[0];
-        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-        
-        const latestEntry = streaks[0];
-        if (latestEntry.date === today || latestEntry.date === yesterday) {
-          const streakDates = new Set(streaks.map(s => s.date));
-          let checkDate = new Date();
-          
-          if (latestEntry.date === yesterday) {
-            checkDate = new Date(Date.now() - 86400000);
-          }
-          
-          while (streakDates.has(checkDate.toISOString().split('T')[0])) {
-            currentStreak++;
-            checkDate = new Date(checkDate.getTime() - 86400000);
-          }
-        }
-      }
-
-      // Calculate total XP
-      const totalXP = streaks?.reduce((sum, streak) => sum + streak.xp_earned, 0) || 0;
-      const activeGoals = goalsData?.filter(goal => !goal.completed).length || 0;
-
-      const newStats = {
-        currentStreak,
-        totalXP,
-        activeGoals,
-        rank: totalXP > 100 ? 'Advanced' : totalXP > 50 ? 'Intermediate' : 'Beginner'
-      };
-
-      console.log('Calculated stats:', newStats);
-
-      setStats(newStats);
-      setRecentStreaks(streaks?.slice(0, 5) || []);
-      setGoals(goalsData || []);
-
+      await Promise.all([
+        fetchGoals(),
+        fetchRecentLogs(),
+        fetchUserStats(),
+        checkTodayLog()
+      ]);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load dashboard data. Please refresh the page.",
-        variant: "destructive"
-      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
+  const fetchGoals = async () => {
+    const { data, error } = await supabase
+      .from('goals')
+      .select('*')
+      .eq('user_id', user?.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching goals:', error);
+    } else {
+      setGoals(data || []);
+    }
   };
 
-  const handleProgressLogged = () => {
-    console.log('Progress logged, refreshing data...');
-    fetchDashboardData();
+  const fetchRecentLogs = async () => {
+    const { data, error } = await supabase
+      .from('streaks')
+      .select('*')
+      .eq('user_id', user?.id)
+      .order('date', { ascending: false })
+      .limit(5);
+
+    if (error) {
+      console.error('Error fetching recent logs:', error);
+    } else {
+      setRecentLogs(data || []);
+    }
   };
 
-  const handleGoalCreated = () => {
-    console.log('Goal created, refreshing data...');
-    fetchDashboardData();
+  const fetchUserStats = async () => {
+    try {
+      const { data: totalXPData } = await supabase
+        .rpc('get_user_total_xp', { target_user_id: user?.id });
+
+      const { data: streakData } = await supabase
+        .rpc('get_user_current_streak', { target_user_id: user?.id });
+
+      // Get user rank from leaderboard
+      const { data: leaderboardData } = await supabase
+        .from('streaks')
+        .select('user_id, xp_earned');
+
+      const userTotals = new Map<string, number>();
+      leaderboardData?.forEach(entry => {
+        const current = userTotals.get(entry.user_id) || 0;
+        userTotals.set(entry.user_id, current + entry.xp_earned);
+      });
+
+      const sortedUsers = Array.from(userTotals.entries())
+        .sort(([,a], [,b]) => b - a);
+      
+      const userRank = sortedUsers.findIndex(([userId]) => userId === user?.id) + 1;
+
+      setUserStats({
+        totalXP: totalXPData || 0,
+        currentStreak: streakData || 0,
+        rank: userRank || 0
+      });
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+    }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const checkTodayLog = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await supabase
+      .from('streaks')
+      .select('id')
+      .eq('user_id', user?.id)
+      .eq('date', today)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error checking today log:', error);
+    } else {
+      setTodayLogged(!!data);
+    }
+  };
+
+  const handleGoalComplete = async (goalId: string) => {
+    try {
+      const goal = goals.find(g => g.id === goalId);
+      if (!goal) return;
+
+      const { error } = await supabase
+        .from('goals')
+        .update({ completed: true, updated_at: new Date().toISOString() })
+        .eq('id', goalId);
+
+      if (error) throw error;
+
+      // Award XP for completing goal
+      const today = new Date().toISOString().split('T')[0];
+      const { error: streakError } = await supabase
+        .from('streaks')
+        .insert({
+          user_id: user?.id,
+          date: today,
+          description: `Completed goal: ${goal.title}`,
+          xp_earned: goal.xp_reward
+        });
+
+      if (streakError && streakError.code !== '23505') {
+        console.error('Error logging goal completion XP:', streakError);
+      }
+
+      toast({
+        title: "Goal Completed! 🎉",
+        description: `You earned ${goal.xp_reward} XP for completing "${goal.title}"`,
+      });
+
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Error completing goal:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete goal. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   if (loading) {
@@ -163,263 +203,278 @@ const Dashboard = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading dashboard...</p>
+          <p className="text-muted-foreground">Loading your dashboard...</p>
         </div>
       </div>
     );
   }
 
+  const activeGoals = goals.filter(goal => !goal.completed);
+  const completedGoals = goals.filter(goal => goal.completed);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
-        <div className="container mx-auto px-6 py-4">
+      <header className="border-b border-border bg-background/80 backdrop-blur-md">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Code2 className="h-6 w-6 text-primary" />
-                <h1 className="text-xl font-semibold text-foreground">StreakHub</h1>
-              </div>
-              <div className="h-4 w-px bg-border" />
-              <p className="text-sm text-muted-foreground">
-                Welcome back, <span className="text-foreground font-medium">{user?.email?.split('@')[0]}</span>
-              </p>
+            <div>
+              <h1 className="text-2xl font-bold">Dashboard</h1>
+              <p className="text-muted-foreground">Track your coding journey</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => navigate('/profile')}
-                className="text-muted-foreground hover:text-foreground"
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setShowLogProgress(true)}
+                variant="hero"
+                disabled={todayLogged}
               >
-                <Settings className="h-4 w-4" />
+                <Plus className="h-4 w-4 mr-2" />
+                {todayLogged ? 'Logged Today' : 'Log Progress'}
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleSignOut}
-                className="text-muted-foreground hover:text-foreground border-border"
-              >
-                Sign Out
+              <Button onClick={() => navigate('/profile')} variant="outline" size="icon">
+                <User className="h-4 w-4" />
               </Button>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card className="bg-card border-border hover:bg-accent/5 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Current Streak</CardTitle>
-              <Flame className="h-4 w-4 text-streak" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-streak">{stats.currentStreak} days</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {stats.currentStreak === 0 ? 'Log today to start' : 'Keep it going!'}
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-card border-border hover:bg-accent/5 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total XP</CardTitle>
-              <Trophy className="h-4 w-4 text-warning" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-warning">{stats.totalXP}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Earn XP daily
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-card border-border hover:bg-accent/5 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Active Goals</CardTitle>
-              <Target className="h-4 w-4 text-info" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-info">{stats.activeGoals}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {stats.activeGoals === 0 ? 'Set your goals' : 'Keep pushing!'}
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-card border-border hover:bg-accent/5 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Rank</CardTitle>
-              <Users className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">{stats.rank}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Based on XP
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+      <div className="container mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Stats and Recent Activity */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <Trophy className="h-8 w-8 text-warning mx-auto mb-2" />
+                  <p className="text-2xl font-bold">{userStats.totalXP}</p>
+                  <p className="text-sm text-muted-foreground">Total XP</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <Flame className="h-8 w-8 text-streak mx-auto mb-2" />
+                  <p className="text-2xl font-bold">{userStats.currentStreak}</p>
+                  <p className="text-sm text-muted-foreground">Day Streak</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <Target className="h-8 w-8 text-primary mx-auto mb-2" />
+                  <p className="text-2xl font-bold">#{userStats.rank || 'N/A'}</p>
+                  <p className="text-sm text-muted-foreground">Global Rank</p>
+                </CardContent>
+              </Card>
+            </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Recent Activity */}
-          <Card className="bg-card border-border">
-            <CardHeader className="border-b border-border/50">
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <Calendar className="h-5 w-5 text-primary" />
-                Recent Activity
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Your latest coding sessions
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="mb-6">
-                <LogProgressDialog onSuccess={handleProgressLogged} />
-              </div>
-              
-              {recentStreaks.length > 0 ? (
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-muted-foreground mb-3">Recent Sessions</h4>
-                  {recentStreaks.map((streak) => (
-                    <div key={streak.id} className="flex items-center justify-between p-3 bg-accent/20 rounded-lg">
-                      <div className="flex-1">
-                        <p className="text-sm text-foreground">{streak.description}</p>
-                        <p className="text-xs text-muted-foreground">{formatDate(streak.date)}</p>
+            {/* Active Goals */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5" />
+                      Active Goals ({activeGoals.length})
+                    </CardTitle>
+                    <CardDescription>Your current coding objectives</CardDescription>
+                  </div>
+                  <Button onClick={() => setShowCreateGoal(true)} size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Goal
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {activeGoals.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No Active Goals</h3>
+                    <p className="text-muted-foreground mb-4">Set your first coding goal to get started!</p>
+                    <Button onClick={() => setShowCreateGoal(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create First Goal
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {activeGoals.map((goal) => (
+                      <div key={goal.id} className="p-4 bg-accent/20 rounded-lg">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <h4 className="font-semibold">{goal.title}</h4>
+                            {goal.description && (
+                              <p className="text-sm text-muted-foreground mt-1">{goal.description}</p>
+                            )}
+                          </div>
+                          <div className="flex gap-2 ml-4">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setSelectedGoal(goal)}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handleGoalComplete(goal.id)}
+                            >
+                              <CheckCircle className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          {goal.target_date && (
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              <span>Due {format(new Date(goal.target_date), 'MMM dd, yyyy')}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <Trophy className="h-3 w-3" />
+                            <span>{goal.xp_reward} XP</span>
+                          </div>
+                        </div>
                       </div>
-                      <Badge variant="secondary" className="ml-2">
-                        +{streak.xp_earned} XP
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <GitBranch className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">No sessions logged yet</p>
-                  <p className="text-xs text-muted-foreground mt-1">Click "Log Today's Progress" to get started!</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-          {/* Goals */}
-          <Card className="bg-card border-border">
-            <CardHeader className="border-b border-border/50">
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <Target className="h-5 w-5 text-primary" />
-                Your Goals
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Track your objectives and milestones
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="mb-6">
-                <CreateGoalDialog onSuccess={handleGoalCreated} />
-              </div>
-              
-              {goals.length > 0 ? (
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-muted-foreground mb-3">
-                    {goals.filter(goal => !goal.completed).length > 0 ? 'Active Goals' : 'Completed Goals'}
-                  </h4>
-                  {goals.map((goal) => (
-                    <div key={goal.id} className={`p-4 rounded-lg ${goal.completed ? 'bg-green-500/10 border border-green-500/20' : 'bg-accent/20'}`}>
-                      <div className="flex items-start justify-between mb-2">
-                        <h5 className="font-medium text-foreground">{goal.title}</h5>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="ml-2">
-                            {goal.xp_reward} XP
-                          </Badge>
-                          {goal.completed && (
-                            <Badge variant="default" className="bg-green-500">
-                              Completed
-                            </Badge>
+            {/* Recent Activity */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>Your latest progress entries</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {recentLogs.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Flame className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No Activity Yet</h3>
+                    <p className="text-muted-foreground mb-4">Start logging your daily progress!</p>
+                    <Button onClick={() => setShowLogProgress(true)} disabled={todayLogged}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      {todayLogged ? 'Already Logged Today' : 'Log Today\'s Progress'}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {recentLogs.map((log) => (
+                      <div key={log.id} className="flex items-center gap-4 p-3 bg-accent/20 rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-medium">
+                              {format(new Date(log.date), 'MMM dd, yyyy')}
+                            </span>
+                            {isToday(new Date(log.date)) && (
+                              <Badge variant="secondary" className="text-xs">Today</Badge>
+                            )}
+                          </div>
+                          {log.description && (
+                            <p className="text-sm text-muted-foreground">{log.description}</p>
                           )}
                         </div>
-                      </div>
-                      {goal.description && (
-                        <p className="text-sm text-muted-foreground mb-2">{goal.description}</p>
-                      )}
-                      {goal.target_date && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          Due: {formatDate(goal.target_date)}
+                        <div className="flex items-center gap-1 text-sm font-medium">
+                          <Trophy className="h-3 w-3 text-warning" />
+                          <span>+{log.xp_earned} XP</span>
                         </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <Target className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">No goals set yet</p>
-                  <p className="text-xs text-muted-foreground mt-1">Create your first goal to get started!</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-        {/* Quick Actions */}
-        <Card className="bg-card border-border">
-          <CardHeader className="border-b border-border/50">
-            <CardTitle className="text-foreground">Quick Actions</CardTitle>
-            <CardDescription className="text-muted-foreground">
-              Navigate to key features
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Button 
-                variant="ghost" 
-                className="h-auto p-6 flex flex-col items-center gap-3 hover:bg-accent/50 border border-border/50 hover:border-border"
-                onClick={() => navigate('/leaderboard')}
-              >
-                <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
-                  <Trophy className="h-6 w-6 text-warning" />
-                </div>
-                <div className="text-center">
-                  <div className="font-medium text-foreground">Leaderboard</div>
-                  <div className="text-xs text-muted-foreground">See rankings</div>
-                </div>
-              </Button>
-              
-              <Button 
-                variant="ghost" 
-                className="h-auto p-6 flex flex-col items-center gap-3 hover:bg-accent/50 border border-border/50 hover:border-border"
-                onClick={() => navigate('/community')}
-              >
-                <div className="w-12 h-12 bg-info/10 rounded-lg flex items-center justify-center">
-                  <MessageCircle className="h-6 w-6 text-info" />
-                </div>
-                <div className="text-center">
-                  <div className="font-medium text-foreground">Community</div>
-                  <div className="text-xs text-muted-foreground">Join chat</div>
-                </div>
-              </Button>
-              
-              <Button 
-                variant="ghost" 
-                className="h-auto p-6 flex flex-col items-center gap-3 hover:bg-accent/50 border border-border/50 hover:border-border"
-                onClick={() => navigate('/profile')}
-              >
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Settings className="h-6 w-6 text-primary" />
-                </div>
-                <div className="text-center">
-                  <div className="font-medium text-foreground">Profile</div>
-                  <div className="text-xs text-muted-foreground">Edit settings</div>
-                </div>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            {/* Completed Goals */}
+            {completedGoals.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-success" />
+                    Completed Goals ({completedGoals.length})
+                  </CardTitle>
+                  <CardDescription>Goals you've successfully achieved</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {completedGoals.map((goal) => (
+                      <div key={goal.id} className="p-3 bg-success/10 border border-success/20 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-medium">{goal.title}</h4>
+                            {goal.description && (
+                              <p className="text-sm text-muted-foreground">{goal.description}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 text-sm font-medium text-success">
+                            <Trophy className="h-3 w-3" />
+                            <span>{goal.xp_reward} XP</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Right Column - Friends Leaderboard */}
+          <div className="space-y-6">
+            <FriendsLeaderboard />
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/leaderboard')}>
+                  <Trophy className="h-4 w-4 mr-2" />
+                  View Global Leaderboard
+                </Button>
+                <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/community')}>
+                  <User className="h-4 w-4 mr-2" />
+                  Join Community Chat
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
+
+      {/* Dialogs */}
+      <CreateGoalDialog
+        open={showCreateGoal}
+        onOpenChange={setShowCreateGoal}
+        onGoalCreated={() => {
+          fetchGoals();
+          setShowCreateGoal(false);
+        }}
+      />
+
+      <LogProgressDialog
+        open={showLogProgress}
+        onOpenChange={setShowLogProgress}
+        onProgressLogged={() => {
+          fetchDashboardData();
+          setShowLogProgress(false);
+        }}
+      />
+
+      {selectedGoal && (
+        <EditGoalDialog
+          goal={selectedGoal}
+          open={!!selectedGoal}
+          onOpenChange={() => setSelectedGoal(null)}
+          onGoalUpdated={() => {
+            fetchGoals();
+            setSelectedGoal(null);
+          }}
+        />
+      )}
     </div>
   );
 };
