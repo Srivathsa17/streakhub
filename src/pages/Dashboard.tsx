@@ -356,16 +356,22 @@ const Dashboard = () => {
 
       {/* Dialogs */}
       <CreateGoalDialog 
-        onGoalCreated={fetchGoals}
+        onSuccess={fetchGoals}
       />
 
       <LogProgressDialog 
-        onProgressLogged={fetchUserData}
+        onSuccess={fetchUserData}
       />
 
       {editingGoal && (
         <EditGoalDialog
           goal={editingGoal}
+          open={!!editingGoal}
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditingGoal(null);
+            }
+          }}
           onGoalUpdated={fetchGoals}
         />
       )}
