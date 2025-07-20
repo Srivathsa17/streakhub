@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,15 +8,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Target, Plus } from 'lucide-react';
+import { Target } from 'lucide-react';
 
 interface CreateGoalDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onSuccess?: () => void;
   hasExistingGoals?: boolean;
 }
 
-const CreateGoalDialog = ({ onSuccess, hasExistingGoals = false }: CreateGoalDialogProps) => {
-  const [open, setOpen] = useState(false);
+const CreateGoalDialog = ({ open = false, onOpenChange, onSuccess, hasExistingGoals = false }: CreateGoalDialogProps) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [targetDate, setTargetDate] = useState('');
@@ -52,7 +53,7 @@ const CreateGoalDialog = ({ onSuccess, hasExistingGoals = false }: CreateGoalDia
       setDescription('');
       setTargetDate('');
       setXpReward('25');
-      setOpen(false);
+      onOpenChange?.(false);
       onSuccess?.();
     } catch (error) {
       console.error('Error creating goal:', error);
@@ -67,13 +68,7 @@ const CreateGoalDialog = ({ onSuccess, hasExistingGoals = false }: CreateGoalDia
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant={hasExistingGoals ? "outline" : "outline"} className="w-full border-border hover:bg-accent">
-          <Plus className="h-4 w-4 mr-2" />
-          {hasExistingGoals ? 'Create New Goal' : 'Create Your First Goal'}
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md bg-card border-border">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -138,7 +133,7 @@ const CreateGoalDialog = ({ onSuccess, hasExistingGoals = false }: CreateGoalDia
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => onOpenChange?.(false)}
               className="flex-1"
             >
               Cancel

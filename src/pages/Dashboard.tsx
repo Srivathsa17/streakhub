@@ -30,8 +30,8 @@ const Dashboard = () => {
   const [totalXP, setTotalXP] = useState(0);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [showCreateGoal, setShowCreateGoal] = useState(false);
-  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [showLogProgress, setShowLogProgress] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [loadingGoals, setLoadingGoals] = useState(true);
   const [completingGoal, setCompletingGoal] = useState(false);
 
@@ -356,10 +356,14 @@ const Dashboard = () => {
 
       {/* Dialogs */}
       <CreateGoalDialog 
+        open={showCreateGoal}
+        onOpenChange={setShowCreateGoal}
         onSuccess={fetchGoals}
       />
 
       <LogProgressDialog 
+        open={showLogProgress}
+        onOpenChange={setShowLogProgress}
         onSuccess={fetchUserData}
       />
 

@@ -1,19 +1,20 @@
 
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Plus } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 
 interface LogProgressDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onSuccess?: () => void;
 }
 
-const LogProgressDialog = ({ onSuccess }: LogProgressDialogProps) => {
-  const [open, setOpen] = useState(false);
+const LogProgressDialog = ({ open = false, onOpenChange, onSuccess }: LogProgressDialogProps) => {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
@@ -55,7 +56,7 @@ const LogProgressDialog = ({ onSuccess }: LogProgressDialogProps) => {
       });
 
       setDescription('');
-      setOpen(false);
+      onOpenChange?.(false);
       
       // Call the success callback to refresh dashboard data
       if (onSuccess) {
@@ -75,13 +76,7 @@ const LogProgressDialog = ({ onSuccess }: LogProgressDialogProps) => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="default" className="w-full bg-primary hover:bg-primary/90">
-          <Plus className="h-4 w-4 mr-2" />
-          Log Today's Progress
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md bg-card border-border">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -106,7 +101,7 @@ const LogProgressDialog = ({ onSuccess }: LogProgressDialogProps) => {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => onOpenChange?.(false)}
               className="flex-1"
             >
               Cancel
