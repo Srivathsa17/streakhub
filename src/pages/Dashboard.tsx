@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Flame, Target, Plus, CheckCircle, Calendar, Edit, Users, User, LogOut } from 'lucide-react';
+import { 
+  Trophy, Flame, Target, Plus, CheckCircle, Calendar, Edit, Users, User, LogOut, BookOpen
+} from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +24,12 @@ interface Goal {
   target_date: string | null;
 }
 
+interface DailyLogEntry {
+  date: string;
+  xp_earned: number;
+  description: string | null;
+}
+
 const Dashboard = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -29,15 +37,20 @@ const Dashboard = () => {
   const [lastActivity, setLastActivity] = useState<string | null>(null);
   const [totalXP, setTotalXP] = useState(0);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [dailyLog, setDailyLog] = useState<DailyLogEntry[]>([]);
+  const [loadingLog, setLoadingLog] = useState(true);
   const [showCreateGoal, setShowCreateGoal] = useState(false);
   const [showLogProgress, setShowLogProgress] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [loadingGoals, setLoadingGoals] = useState(true);
   const [completingGoal, setCompletingGoal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'log'>('dashboard');
 
   useEffect(() => {
+    if (!user) return;
     fetchUserData();
     fetchGoals();
+    fetchDailyLog();
   }, [user]);
 
   const handleLogout = async () => {
@@ -51,22 +64,16 @@ const Dashboard = () => {
 
   const fetchUserData = async () => {
     if (!user) return;
-
     try {
-      const { data: streakData, error: streakError } = await supabase
+      const { data: streakData } = await supabase
         .rpc('get_user_current_streak', { target_user_id: user.id });
-
-      const { data: totalXPData, error: xpError } = await supabase
+      const { data: totalXPData } = await supabase
         .rpc('get_user_total_xp', { target_user_id: user.id });
-
-      if (streakError) console.error('Error fetching streak:', streakError);
-      if (xpError) console.error('Error fetching XP:', xpError);
 
       setCurrentStreak(streakData || 0);
       setTotalXP(totalXPData || 0);
 
-      // Fetch last activity (example: last streak date)
-      const { data: lastStreak, error: lastStreakError } = await supabase
+      const { data: lastStreak } = await supabase
         .from('streaks')
         .select('date')
         .eq('user_id', user.id)
@@ -74,10 +81,7 @@ const Dashboard = () => {
         .limit(1)
         .single();
 
-      if (lastStreakError) console.error('Error fetching last streak:', lastStreakError);
-
       setLastActivity(lastStreak?.date || null);
-
     } catch (error) {
       console.error('Error fetching user data:', error);
     }
@@ -85,7 +89,6 @@ const Dashboard = () => {
 
   const fetchGoals = async () => {
     if (!user) return;
-
     setLoadingGoals(true);
     try {
       const { data, error } = await supabase
@@ -94,11 +97,8 @@ const Dashboard = () => {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching goals:', error);
-      } else {
-        setGoals(data || []);
-      }
+      if (error) throw error;
+      setGoals(data || []);
     } catch (error) {
       console.error('Error fetching goals:', error);
     } finally {
@@ -106,20 +106,35 @@ const Dashboard = () => {
     }
   };
 
+  const fetchDailyLog = async () => {
+    if (!user) return;
+    setLoadingLog(true);
+    try {
+      const { data, error } = await supabase
+        .from('streaks')
+        .select('date, xp_earned, description')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false })
+        .limit(14);
+
+      if (error) throw error;
+      setDailyLog(data || []);
+    } catch (error) {
+      console.error('Error fetching daily log:', error);
+    } finally {
+      setLoadingLog(false);
+    }
+  };
+
   const completeGoal = async (goalId: string, xpReward: number) => {
     if (!user) return;
-
     setCompletingGoal(true);
     try {
-      // Mark goal as completed
-      const { error: updateError } = await supabase
+      await supabase
         .from('goals')
         .update({ completed: true })
         .eq('id', goalId);
 
-      if (updateError) throw updateError;
-
-      // Log XP earned for completing the goal
       const today = new Date().toISOString().split('T')[0];
       const { data: existingStreak } = await supabase
         .from('streaks')
@@ -129,22 +144,19 @@ const Dashboard = () => {
         .single();
 
       if (!existingStreak) {
-        const { error: streakError } = await supabase
+        await supabase
           .from('streaks')
           .insert({
             user_id: user.id,
             date: today,
             xp_earned: xpReward,
-            description: 'Completed a goal!'
+            description: `Completed: "${goals.find(g => g.id === goalId)?.title}"`
           });
-
-        if (streakError) throw streakError;
       }
 
-      // Refresh user data and goals
       await fetchUserData();
       await fetchGoals();
-
+      await fetchDailyLog();
     } catch (error) {
       console.error('Error completing goal:', error);
     } finally {
@@ -153,192 +165,301 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       {/* Header */}
-      <header className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-50">
+      <header className="border-b border-border/30 bg-background/70 backdrop-blur-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            Dashboard
+          <h1 className="text-2xl font-semibold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            DevStreak
           </h1>
-          <div className="flex items-center gap-4">
-            <Button variant="outline" asChild>
-              <Link to="/leaderboard">
-                <Trophy className="h-4 w-4 mr-2" />
-                Leaderboard
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/community">
-                <Users className="h-4 w-4 mr-2" />
-                Community
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/profile">
-                <User className="h-4 w-4 mr-2" />
-                Profile
-              </Link>
-            </Button>
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
+          <div className="flex items-center gap-3">
+            {(['leaderboard', 'community', 'profile'] as const).map((route) => (
+              <Button
+                key={route}
+                variant="ghost"
+                size="sm"
+                asChild
+                className="text-sm transition-colors hover:bg-accent/30"
+              >
+                <Link to={`/${route}`} className="flex items-center gap-1.5">
+                  {route === 'leaderboard' && <Trophy className="h-4 w-4" />}
+                  {route === 'community' && <Users className="h-4 w-4" />}
+                  {route === 'profile' && <User className="h-4 w-4" />}
+                  {route.charAt(0).toUpperCase() + route.slice(1)}
+                </Link>
+              </Button>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              className="text-sm"
+            >
+              <LogOut className="h-4 w-4 mr-1.5" />
               Logout
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Stats and Quick Actions */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Friend Request Notifications */}
-            <FriendRequestNotifications />
+      {/* Modern Pill Navigation */}
+      <div className="container mx-auto px-4 mt-6 mb-2">
+        <div className="flex justify-center">
+          <div className="bg-muted/60 p-1 rounded-full inline-flex border border-border/50 shadow-sm">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
+                activeTab === 'dashboard'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Target className="h-4 w-4" />
+              Dashboard
+            </button>
+            <button
+              onClick={() => setActiveTab('log')}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
+                activeTab === 'log'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <BookOpen className="h-4 w-4" />
+              Activity Log
+            </button>
+          </div>
+        </div>
+      </div>
 
-            {/* Streak Card */}
-            <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20 jetbrains-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Flame className="h-6 w-6 text-streak" />
-                  Current Streak
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-4xl font-bold text-streak mb-2">
-                  {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
-                </div>
-                <p className="text-muted-foreground">
-                  {lastActivity ? `Last activity: ${lastActivity}` : 'No activity logged yet'}
-                </p>
-              </CardContent>
-            </Card>
+      <main className="container mx-auto px-4 py-6">
+        {activeTab === 'dashboard' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Content */}
+            <div className="lg:col-span-2 space-y-6">
+              <FriendRequestNotifications />
 
-            {/* XP Card */}
-            <Card className="bg-gradient-to-br from-secondary/10 to-muted/10 border-secondary/20 jetbrains-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Trophy className="h-6 w-6 text-warning" />
-                  Total XP
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-4xl font-bold text-warning mb-2">
-                  {totalXP}
-                </div>
-                <p className="text-muted-foreground">
-                  Keep coding to earn more XP and climb the leaderboard!
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* AI Goal Planner */}
-            <AIGoalPlanner 
-              userProfile={{ totalXP, currentStreak }}
-              currentGoals={goals}
-              onGoalCreated={fetchGoals}
-            />
-
-            {/* Quick Actions */}
-            <Card className="jetbrains-card">
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>Log progress or set new goals</CardDescription>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Button onClick={() => setShowLogProgress(true)} className="jetbrains-button">
-                  <Flame className="h-4 w-4 mr-2" />
-                  Log Progress
-                </Button>
-                <Button variant="secondary" onClick={() => setShowCreateGoal(true)} className="jetbrains-button">
-                  <Target className="h-4 w-4 mr-2" />
-                  Set New Goal
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Goals Section */}
-            <Card className="jetbrains-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="h-5 w-5" />
-                    Your Goals
-                  </CardTitle>
-                  <CardDescription>Track your coding objectives</CardDescription>
-                </div>
-                <Button onClick={() => setShowCreateGoal(true)} className="jetbrains-button">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Goal
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {loadingGoals ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                  </div>
-                ) : goals.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No Goals Yet</h3>
-                    <p className="text-muted-foreground text-sm mb-4">
-                      Set your first coding goal to stay motivated!
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Streak Card */}
+                <Card className="jetbrains-card border border-border/50 hover:shadow-md transition-shadow duration-300">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-streak text-sm font-medium">
+                      <Flame className="h-4 w-4" />
+                      Current Streak
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-streak">{currentStreak} days</div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {lastActivity ? `Active ${new Date(lastActivity).toLocaleDateString()}` : 'No activity'}
                     </p>
-                    <Button onClick={() => setShowCreateGoal(true)} className="jetbrains-button">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Your First Goal
-                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* XP Card */}
+                <Card className="jetbrains-card border border-border/50 hover:shadow-md transition-shadow duration-300">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-warning text-sm font-medium">
+                      <Trophy className="h-4 w-4" />
+                      Total XP
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-warning">{totalXP}</div>
+                    <p className="text-xs text-muted-foreground mt-1">Keep growing!</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* AI Goal Planner */}
+              <Card className="jetbrains-card border border-border/50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <svg className="h-4 w-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M9.5 2a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 4.414 7.707 6.707a1 1 0 01-1.414-1.414l3-3A1 1 0 019.5 2z" clipRule="evenodd" />
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                      <path fillRule="evenodd" d="M2 12a1 1 0 011-1h14a1 1 0 110 2H3a1 1 0 01-1-1z" clipRule="evenodd" />
+                    </svg>
+                    AI Goal Assistant
+                  </CardTitle>
+                  <CardDescription className="text-xs">Smart suggestions based on your progress</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <AIGoalPlanner 
+                    userProfile={{ totalXP, currentStreak }}
+                    currentGoals={goals}
+                    onGoalCreated={fetchGoals}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Quick Actions */}
+              <Card className="jetbrains-card border border-border/50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Button 
+                    onClick={() => setShowLogProgress(true)} 
+                    className="h-10 text-sm jetbrains-button"
+                  >
+                    <Flame className="h-4 w-4 mr-2" />
+                    Log Progress
+                  </Button>
+                  <Button 
+                    variant="secondary" 
+                    onClick={() => setShowCreateGoal(true)} 
+                    className="h-10 text-sm"
+                  >
+                    <Target className="h-4 w-4 mr-2" />
+                    New Goal
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Goals */}
+              <Card className="jetbrains-card border border-border/50">
+                <CardHeader className="flex flex-row items-center justify-between pb-3">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                      <Target className="h-4 w-4" />
+                      Your Goals
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      {goals.filter(g => !g.completed).length} active
+                    </CardDescription>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {goals.map((goal) => (
-                      <div key={goal.id} className="flex items-center justify-between p-4 bg-accent/20 rounded-lg jetbrains-card">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-medium">{goal.title}</h4>
+                  <Button 
+                    onClick={() => setShowCreateGoal(true)} 
+                    size="sm"
+                    className="h-8 text-xs"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    New
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {loadingGoals ? (
+                    <div className="flex items-center justify-center py-6">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                    </div>
+                  ) : goals.length === 0 ? (
+                    <p className="text-center text-sm text-muted-foreground py-4">No goals yet. Start by creating one!</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {goals.map(goal => (
+                        <div
+                          key={goal.id}
+                          className="p-4 bg-accent/15 rounded-lg border border-border/20 hover:shadow-sm transition-shadow"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-sm">{goal.title}</h4>
+                              {goal.description && (
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{goal.description}</p>
+                              )}
+                            </div>
                             {goal.completed && (
-                              <Badge className="bg-success text-success-foreground">
+                              <Badge className="bg-success/80 text-success-foreground border-0 text-xs px-2">
                                 <CheckCircle className="h-3 w-3 mr-1" />
-                                Completed
+                                Done
                               </Badge>
                             )}
                           </div>
-                          {goal.description && (
-                            <p className="text-sm text-muted-foreground mb-2">{goal.description}</p>
-                          )}
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>{goal.xp_reward} XP</span>
                             {goal.target_date && (
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                <span>Due {new Date(goal.target_date).toLocaleDateString()}</span>
-                              </div>
+                              <span>Due {new Date(goal.target_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                             )}
-                            <div className="flex items-center gap-1">
-                              <Trophy className="h-3 w-3" />
-                              <span>{goal.xp_reward} XP</span>
-                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setEditingGoal(goal)}
-                            className="jetbrains-button"
-                          >
-                            <Edit className="h-3 w-3 mr-1" />
-                            Edit
-                          </Button>
                           {!goal.completed && (
-                            <Button
-                              size="sm"
-                              onClick={() => completeGoal(goal.id, goal.xp_reward)}
-                              disabled={completingGoal}
-                              className="jetbrains-button"
-                            >
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Complete
-                            </Button>
+                            <div className="flex gap-2 mt-3">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditingGoal(goal)}
+                                className="h-8 text-xs"
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => completeGoal(goal.id, goal.xp_reward)}
+                                disabled={completingGoal}
+                                className="h-8 text-xs jetbrains-button"
+                              >
+                                Complete
+                              </Button>
+                            </div>
                           )}
                         </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              <FriendsLeaderboard />
+            </div>
+          </div>
+        ) : (
+          /* Activity Log Tab */
+          <div className="max-w-3xl mx-auto">
+            <Card className="jetbrains-card border border-border/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" />
+                  Activity Log
+                </CardTitle>
+                <CardDescription>
+                  {dailyLog.length} recent entries
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingLog ? (
+                  <div className="flex items-center justify-center py-10">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                  </div>
+                ) : dailyLog.length === 0 ? (
+                  <div className="text-center py-10">
+                    <BookOpen className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-60" />
+                    <p className="text-sm text-muted-foreground mb-4">No activity recorded yet.</p>
+                    <Button
+                      onClick={() => setShowLogProgress(true)}
+                      size="sm"
+                      className="jetbrains-button text-xs"
+                    >
+                      <Flame className="h-3 w-3 mr-1.5" />
+                      Log Your First Session
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {dailyLog.map(entry => (
+                      <div
+                        key={entry.date}
+                        className="flex items-center justify-between p-4 bg-accent/15 rounded-lg border border-border/20"
+                      >
+                        <div>
+                          <div className="font-medium text-sm">
+                            {new Date(entry.date).toLocaleDateString('en-US', {
+                              weekday: 'short',
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {entry.description || 'Logged progress'}
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="text-xs px-2.5 py-1">
+                          +{entry.xp_earned} XP
+                        </Badge>
                       </div>
                     ))}
                   </div>
@@ -346,13 +467,8 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           </div>
-
-          {/* Right Column - Friends Leaderboard */}
-          <div className="space-y-6">
-            <FriendsLeaderboard />
-          </div>
-        </div>
-      </div>
+        )}
+      </main>
 
       {/* Dialogs */}
       <CreateGoalDialog 
@@ -360,22 +476,19 @@ const Dashboard = () => {
         onOpenChange={setShowCreateGoal}
         onSuccess={fetchGoals}
       />
-
       <LogProgressDialog 
         open={showLogProgress}
         onOpenChange={setShowLogProgress}
-        onSuccess={fetchUserData}
+        onSuccess={() => {
+          fetchUserData();
+          fetchDailyLog();
+        }}
       />
-
       {editingGoal && (
         <EditGoalDialog
           goal={editingGoal}
           open={!!editingGoal}
-          onOpenChange={(open) => {
-            if (!open) {
-              setEditingGoal(null);
-            }
-          }}
+          onOpenChange={(open) => !open && setEditingGoal(null)}
           onGoalUpdated={fetchGoals}
         />
       )}
