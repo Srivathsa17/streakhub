@@ -170,7 +170,7 @@ const Dashboard = () => {
       <header className="border-b border-border/30 bg-background/70 backdrop-blur-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-semibold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            DevStreak
+            StreakHub
           </h1>
           <div className="flex items-center gap-3">
             {(['leaderboard', 'community', 'profile'] as const).map((route) => (
